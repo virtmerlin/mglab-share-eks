@@ -403,6 +403,7 @@ SO THAT:
   (-) Cleanup Demo Script(s)
 
     kubectl delete ns wordpress-demo
+    # Add delete all created namespaces & elbs
 
     export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
     echo $C9_AWS_ACCT
