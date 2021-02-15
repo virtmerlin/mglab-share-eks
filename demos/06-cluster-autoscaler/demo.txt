@@ -1,0 +1,93 @@
+=====================================================================
+GIVEN:
+  - A developer desktop with docker & git installed (AWS Cloud9)
+  - An EKS cluster named 'cluster-eksctl' has been created via 04-create-advanced-cluster-eksctl-existing-vpc
+WHEN:
+  - I validate the cluster autoscaler is functioning
+THEN:
+  - I will create deployment
+  - I will validate the NodeGroups ASG min/max settings
+  - I will create a deployment & scale it
+SO THAT:
+  - I can see the cluster add nodes when necessary
+
+=====================================================================
+(0) Requires
+
+    04-create-advanced-cluster-eksctl-existing-vpc
+
+(0) PreReqs
+
+    (-) Set the AWS Region variable for where you want to run these demos
+
+        export C9_REGION=[[YOUR_REGION]]
+
+    (-) Create/Update an EKS style VPC from your Desktop using AWS Cloudformation
+
+        aws cloudformation deploy --region $C9_REGION --template-file ../01-docker-build-wordpress/pre-reqs/cfn-amazon-eks-vpc-private-subnets.cfn \
+          --stack-name eks-demos-networking
+
+    (-) Create/Update C9 Instance within the VPC. You will run all subsequent demo steps from a console on the C9 Instance.
+
+        aws cloudformation deploy --region $C9_REGION --template-file ../01-docker-build-wordpress/pre-reqs/cfn-c9-desktop.cfn \
+          --stack-name eks-demos-c9-dev-desktop
+
+    (-) Navigate to C9 Instance 'terminal' window of the IDE & resize the disk
+
+        https://console.aws.amazon.com/cloud9/home?
+        ---> Open IDE to exec all remaining demo commands within the C9 desktop
+
+        cd ~/environment
+        if [ ! -d mglab-share-eks ]; then git clone https://github.com/virtmerlin/mglab-share-eks.git; fi
+        chmod 755 ./mglab-share-eks/demos/01-docker-build-wordpress/pre-reqs/resize.sh
+        ./mglab-share-eks/demos/01-docker-build-wordpress/pre-reqs/resize.sh
+        export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
+        echo $C9_REGION
+
+    (-) In the C9 Desktop ... Edit prefs to not use automated AWS creds and pass your AWS Keys to the CLI otherwise eksctl will fail
+
+        ----> Cloud9/Preferences
+          ----> AWS Settings
+            ----> Disable AWS managed temporary credentials radial button
+
+        aws configure
+
+(1) Validate the Cluster Autoscaler
+
+    (-) Set cluster context
+
+        cd ~/environment/mglab-share-eks/demos/06-cluster-autoscaler
+
+        export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
+        export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
+
+        aws eks update-kubeconfig --name cluster-eksctl --region $C9_REGION
+        kubectl config use-context arn:aws:eks:$C9_REGION:$C9_AWS_ACCT:cluster/cluster-eksctl
+
+    (-) get cluster-autoscaler logs
+
+        kubectl logs deployment.apps/cluster-autoscaler -n kube-system -f
+
+    (-) get cluster cluster-autoscaler service account & review IRSA Mappings
+
+(2) Create & Scale deployment
+
+    (-)
+
+        kubectl get nodes -o wide
+        kubectl create deployment autoscaler-demo --image=public.ecr.aws/u3e9a9s8/nginx:latest
+        kubectl set resources deploy autoscaler-demo --requests=cpu=200m,memory=200Mi
+
+        kubectl scale deployment autoscaler-demo --replicas=50
+        kubectl get deployment autoscaler-demo --watch
+        kubectl delete deployment autoscaler-demo
+        kubectl get nodes -o wide
+
+(CLEANUP)
+
+  (-) Cleanup Demo Script(s)
+
+  (-) Cleanup Pre-Reqs Script(s)
+
+      aws cloudformation delete-stack --region $C9_REGION --stack-name eks-demos-c9-dev-desktop
+      aws cloudformation wait stack-delete-complete --region $C9_REGION --stack-name eks-demos-c9-dev-desktop

@@ -1,0 +1,468 @@
+=====================================================================
+GIVEN:
+  - A developer desktop with docker & git installed (AWS Cloud9)
+  - A VPC created with EKS best practices
+WHEN:
+  - I create 6 IAM Roles (1 x creator, 1 x cluster, 3 x nodes, 1 x Fargate profile)
+  - I assume the creator role & create an eks cluster
+  - I create a managed AL2 nodegroup-01
+  - I create a self-managed nodegroup-02 with mixed instance type AL2 on-demand & spot nodes
+  - I create a self-managed nodegroup-03 with bottlerocket nodes
+  - I create a Fargate profile
+  - I install the Cluster Autoscaler
+THEN:
+  - I will get a kubernetes cluster w various compute options
+   -I will get a kubernetes cluster with the creator IAM role mapped to k8s RBAC group system:masters
+SO THAT:
+  - I can configure my kubeconfig to assume the creator IAM role
+  - I can taint Spot & Bottlerocket nodes
+  - I can run my wordpress application with node affinity & pod anti affinity
+    - wordpress front-end on Spot & OnDemand Nodes with pods spread across zones with Pod Anti Affinity
+    - Wordpress-mysql back-end on OnDemand nodes only
+  - I can scale Wordpress Front End Up & the cluster autoscaler will scale my Al2 based nodegroups 01 & 02 up
+=====================================================================
+(0) PreReqs
+
+    (-) Set the AWS Region variable for where you want to run these demos
+
+        export C9_REGION=[[YOUR_REGION]]
+
+    (-) Create/Update an EKS style VPC from your Desktop using AWS Cloudformation
+
+        aws cloudformation deploy --region $C9_REGION --template-file ../01-docker-build-wordpress/pre-reqs/cfn-amazon-eks-vpc-private-subnets.cfn \
+          --stack-name eks-demos-networking
+
+    (-) Create/Update C9 Instance within the VPC. You will run all subsequent demo steps from a console on the C9 Instance.
+
+        aws cloudformation deploy --region $C9_REGION --template-file ../01-docker-build-wordpress/pre-reqs/cfn-c9-desktop.cfn \
+          --stack-name eks-demos-c9-dev-desktop
+
+    (-) Navigate to C9 Instance 'terminal' window of the IDE & resize the disk
+
+        https://console.aws.amazon.com/cloud9/home?
+        ---> Open IDE to exec all remaining demo commands within the C9 desktop
+
+        cd ~/environment
+        if [ ! -d mglab-share-eks ]; then git clone https://github.com/virtmerlin/mglab-share-eks.git; fi
+        chmod 755 ./mglab-share-eks/demos/01-docker-build-wordpress/pre-reqs/resize.sh
+        ./mglab-share-eks/demos/01-docker-build-wordpress/pre-reqs/resize.sh
+        export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
+        echo $C9_REGION
+
+    (-) In the C9 Desktop ... Edit prefs to not use automated AWS creds and pass your AWS Keys to the CLI otherwise eksctl will fail
+
+        ----> Cloud9/Preferences
+          ----> AWS Settings
+            ----> Disable AWS managed temporary credentials radial button
+
+        aws configure
+
+(1) Create the 'cluster creator' IAM role to use when we create the cluster
+
+    (-) Create IAM policy for cluster-awscli creator role
+
+        cd ~/environment/mglab-share-eks/demos/04-create-advanced-cluster-aws-cli-existing-vpc
+
+        export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
+        sed  -i "s/\[\[AWSACCT\]\]/$C9_AWS_ACCT/g" ./artifacts/04-DEMO-eks-creator-iam-policy-limited.json
+
+        aws iam create-policy --policy-name cluster-awscli-creator --policy-document file://./artifacts/04-DEMO-eks-creator-iam-policy-limited.json
+
+    (-) Create IAM Role for cluster-awscli creator and attach the policy
+
+        sed  -i "s/\[\[AWSACCT\]\]/$C9_AWS_ACCT/g" ./artifacts/04-DEMO-eks-creator-iam-policy-trust.json
+
+        aws iam create-role --role-name cluster-awscli-creator-role --assume-role-policy-document file://./artifacts/04-DEMO-eks-creator-iam-policy-trust.json
+        aws iam attach-role-policy --policy-arn arn:aws:iam::$C9_AWS_ACCT:policy/cluster-awscli-creator --role-name cluster-awscli-creator-role
+
+(2) Create the 'cluster ' IAM role for the K8s control plane
+
+    (-) Create IAM Role for cluster-awscli cluster
+
+        aws iam create-role --role-name cluster-awscli-cluster-role --assume-role-policy-document file://./artifacts/04-DEMO-eks-cluster-iam-policy-trust.json
+        aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEKSClusterPolicy --role-name cluster-awscli-cluster-role
+        aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy --role-name cluster-awscli-cluster-role
+
+
+(3) Get Subnet variables from the VPC CFN stack to pass to the aws eks create-cluster & nodegroup command args
+
+    (-) Get EKS VPC Cloudformation Outputs
+
+        export VPCID=$(aws cloudformation --region $C9_REGION \
+        describe-stacks \
+        --stack-name eks-demos-networking \
+        --query "Stacks[].Outputs[?OutputKey=='VpcId'].[OutputValue]" \
+        --output text)
+        echo $VPCID
+
+        export PRIVSUBNETS=$(aws cloudformation --region $C9_REGION \
+        describe-stacks \
+        --stack-name eks-demos-networking \
+        --query "Stacks[].Outputs[?OutputKey=='SubnetIdsPrivate'].[OutputValue]" \
+        --output text)
+        echo $PRIVSUBNETS
+
+(4) Create the EKS Cluster control plane
+
+    (-) Assume IAM role cluster-awscli-creator & create the eks cluster
+
+        aws sts get-caller-identity
+        aws iam list-roles --query 'Roles[].Arn' | grep cluster-awscli
+
+        sudo yum install jq -y
+
+        export TEMP_ROLE=$(aws sts assume-role --role-arn "arn:aws:iam::$C9_AWS_ACCT:role/cluster-awscli-creator-role" --role-session-name create-eks --output json)
+        export AWS_ACCESS_KEY_ID=$(echo $TEMP_ROLE | jq -r .Credentials.AccessKeyId)
+        export AWS_SECRET_ACCESS_KEY=$(echo $TEMP_ROLE | jq -r .Credentials.SecretAccessKey)
+        export AWS_SESSION_TOKEN=$(echo $TEMP_ROLE | jq -r .Credentials.SessionToken)
+
+        aws sts get-caller-identity
+
+    (-) Create cluster as assumed role
+
+        aws eks create-cluster --name cluster-awscli --region $C9_REGION \
+          --role-arn arn:aws:iam::$C9_AWS_ACCT:role/cluster-awscli-cluster-role \
+          --resources-vpc-config subnetIds=$PRIVSUBNETS
+
+    (-) UN-assume IAM role cluster-awscli-creator
+
+        unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+        export AWS_ACCESS_KEY_ID=$(cat ~/.aws/credentials | grep aws_access_key_id | awk '{print$3}')
+        export AWS_SECRET_ACCESS_KEY=$(cat ~/.aws/credentials | grep aws_secret_access_key | awk '{print$3}')
+
+        aws sts get-caller-identity
+
+(5) Tag Existing VPC Subnets for the new cluster we are about to create, this is required for the AWS cloud controller to deploy Load Balancer
+
+    (-) Get EKS VPC Cloudformation Outputs & loop thru subnets to tag them
+
+        export SUBNETS_ALL=$(aws cloudformation --region $C9_REGION \
+        describe-stacks \
+        --stack-name eks-demos-networking \
+        --query "Stacks[].Outputs[?OutputKey=='SubnetIds'].[OutputValue]" \
+        --output text)
+        echo $SUBNETS_ALL
+
+        for i in $(echo $SUBNETS_ALL | sed "s/,/ /g")
+            do
+              aws ec2 create-tags --region $C9_REGION \
+                --resources $i --tags Key=kubernetes.io/cluster/cluster-awscli,Value=shared
+            done
+
+(6) Create ec2 Keypair so we can ssh into AL2 nodes if we need to
+
+    (-) Create cluster_awscli_KeyPair
+
+        aws ec2 create-key-pair --key-name cluster_awscli_KeyPair --region $C9_REGION | grep KeyMaterial | awk -F '"' '{print$4}' > cluster_awscli_key.pem
+        chmod 700 cluster_awscli_key.pem
+
+(7) Install/Update kubectl, generate kubeconfig for the new cluster, & add aws authenicator mappings for the self-managed nodegroups
+
+    (-) Install kubectl
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        curl -LO "https://dl.k8s.io/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
+        echo "$(<kubectl.sha256) kubectl" | sha256sum --check
+        sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+        export AWS_ACCESS_KEY_ID=$(cat ~/.aws/credentials | grep aws_access_key_id | awk '{print$3}')
+        export AWS_SECRET_ACCESS_KEY=$(cat ~/.aws/credentials | grep aws_secret_access_key | awk '{print$3}')
+        aws sts get-caller-identity
+
+    (-) Generate kubeconfig
+
+        aws eks update-kubeconfig --name cluster-awscli --region $C9_REGION --role-arn arn:aws:iam::$C9_AWS_ACCT:role/cluster-awscli-creator-role
+        kubetl config view --minify
+        kubectl get all -A
+
+    (-) Get K8s nodes, Should = 0 at this point
+
+        kubectl get nodes
+
+    (-) Update aws-authenticator cm 'aws-auth' for the self managed nodegroup(s)
+
+        sed  -i "s/\[\[AWSACCT\]\]/$C9_AWS_ACCT/g" ./artifacts/04-DEMO-eks-self-managed-configmap.yaml
+        kubectl apply -f ./artifacts/04-DEMO-eks-self-managed-configmap.yaml
+
+(8) Create a managed AL2 nodegroup-01 with OnDemand nodes
+
+    (-) Create IAM Role for nodegroup
+
+        export TEMP_ROLE_NAME="cluster-awscli-node-managed-al2-group-role"
+
+        aws iam create-role --role-name $TEMP_ROLE_NAME --assume-role-policy-document file://./artifacts/04-DEMO-eks-node-iam-policy-trust.json
+        aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy --role-name $TEMP_ROLE_NAME
+        aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly --role-name $TEMP_ROLE_NAME
+        aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy --role-name $TEMP_ROLE_NAME
+        aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy --role-name $TEMP_ROLE_NAME
+
+        aws iam list-roles --query 'Roles[].Arn' | grep cluster-awscli
+
+
+    (-) Create managed nodegroup with OnDemand Nodes
+
+        aws eks create-nodegroup --cluster-name cluster-awscli --nodegroup-name cluster-awscli-nodegroup-01 --region $C9_REGION \
+           --disk-size 32 \
+           --subnets $(echo $PRIVSUBNETS | tr ',' ' ') \
+           --instance-types t3.medium \
+           --ami-type AL2_x86_64 \
+           --node-role arn:aws:iam::$C9_AWS_ACCT:role/$TEMP_ROLE_NAME \
+           --remote-access ec2SshKey=cluster_awscli_KeyPair \
+           --scaling-config minSize=2,maxSize=5,desiredSize=2
+
+        aws eks wait nodegroup-active --cluster-name cluster-awscli --nodegroup-name cluster-awscli-nodegroup-01 --region $C9_REGION
+
+        kubectl get nodes -o wide
+        kubectl get nodes --label-columns eks.amazonaws.com/nodegroup,eks.amazonaws.com/capacityType
+
+(9) Create a self-managed AL2 mixed instance type nodegroup-02 with Spot & OnDemand Nodes
+
+    (-) Create IAM Role for nodegroup
+
+        export TEMP_ROLE_NAME="cluster-awscli-node-self-managed-al2-mixed-instance-group-role"
+
+        aws iam create-role --role-name $TEMP_ROLE_NAME --assume-role-policy-document file://./artifacts/04-DEMO-eks-node-iam-policy-trust.json
+        aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy --role-name $TEMP_ROLE_NAME
+        aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly --role-name $TEMP_ROLE_NAME
+        aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy --role-name $TEMP_ROLE_NAME
+        aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy --role-name $TEMP_ROLE_NAME
+
+        aws iam list-roles --query 'Roles[].Arn' | grep cluster-awscli
+
+    (-) Create self-managed nodegroup with CFN
+
+        aws cloudformation deploy --template-file ./artifacts/04-DEMO-eks-self-managed-mixed-instances.cfn --stack-name cluster-awscli-nodegroup-02-self-managed-mixed --capabilities CAPABILITY_IAM --parameter-overrides \
+           ClusterName=cluster-awscli \
+           ClusterControlPlaneSecurityGroup=$(aws eks describe-cluster --name cluster-awscli --query 'cluster.resourcesVpcConfig.clusterSecurityGroupId' | tr -d '\"') \
+           NodeGroupName=nodegroup-02-mixed \
+           NodeInstanceRole=cluster-awscli-node-self-managed-al2-mixed-instance-group-role \
+           NodeAutoScalingGroupMinSize=2 \
+           NodeAutoScalingGroupDesiredCapacity=2 \
+           NodeAutoScalingGroupMaxSize=4 \
+           NodeInstanceType=t3.medium \
+           NodeImageIdSSMParam=/aws/service/eks/optimized-ami/1.18/amazon-linux-2/recommended/image_id \
+           NodeVolumeSize=20 \
+           KeyName=cluster_awscli_KeyPair \
+           BootstrapArguments="--apiserver-endpoint $(aws eks describe-cluster --name cluster-awscli --query 'cluster.endpoint' | tr -d '\"') --b64-cluster-ca $(aws eks describe-cluster --name cluster-awscli --query 'cluster.certificateAuthority.data' | tr -d '\"')" \
+           DisableIMDSv1=false \
+           VpcId=$VPCID \
+           Subnets="$PRIVSUBNETS" \
+           InstanceTypesOverride="t2.medium,t3.medium,t2.large" \
+           OnDemandBaseCapacity=1 \
+           OnDemandPercentageAboveBaseCapacity=0 \
+           SpotInstancePools=2
+
+        kubectl get nodes -o wide
+        kubectl get nodes --label-columns eks.amazonaws.com/nodegroup,eks.amazonaws.com/capacityType
+        kubectl get nodes -o json | jq --raw-output '.items[] | .metadata.name,.spec.taints'
+
+
+(10) Create a self-managed BottleRocket instance type nodegroup-03 with OnDemand Nodes
+
+    (-) Create IAM Role for nodegroup
+
+        export TEMP_ROLE_NAME="cluster-awscli-node-self-managed-bottlerocket-group-role"
+
+        aws iam create-role --role-name $TEMP_ROLE_NAME --assume-role-policy-document file://./artifacts/04-DEMO-eks-node-iam-policy-trust.json
+        aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy --role-name $TEMP_ROLE_NAME
+        aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly --role-name $TEMP_ROLE_NAME
+        aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy --role-name $TEMP_ROLE_NAME
+        aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy --role-name $TEMP_ROLE_NAME
+        aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore --role-name $TEMP_ROLE_NAME
+
+        aws iam list-roles --query 'Roles[].Arn' | grep cluster-awscli
+
+    (-) Create self-managed nodegroup with CFN
+
+        aws cloudformation deploy --template-file ./artifacts/04-DEMO-eks-self-managed-bottlerocket-instances.cfn --stack-name cluster-awscli-nodegroup-03-self-managed-bottlerocket --capabilities CAPABILITY_IAM --region $C9_REGION --parameter-overrides \
+           ClusterName=cluster-awscli \
+           ClusterControlPlaneSecurityGroup=$(aws eks describe-cluster --name cluster-awscli --query 'cluster.resourcesVpcConfig.clusterSecurityGroupId' | tr -d '\"') \
+           NodeGroupName=nodegroup-03-bottlerocket \
+           NodeInstanceRole=$TEMP_ROLE_NAME \
+           NodeAutoScalingGroupMinSize=2 \
+           NodeAutoScalingGroupDesiredCapacity=2 \
+           NodeAutoScalingGroupMaxSize=4 \
+           NodeInstanceType=t3.medium \
+           NodeImageIdSSMParam=/aws/service/bottlerocket/aws-k8s-1.18/x86_64/latest/image_id \
+           NodeVolumeSize=20 \
+           KeyName=cluster_awscli_KeyPair \
+           eksendpoint="$(aws eks describe-cluster --name cluster-awscli --query 'cluster.endpoint' | tr -d '\"')" \
+           eksclustercert="$(aws eks describe-cluster --name cluster-awscli --query 'cluster.certificateAuthority.data' | tr -d '\"')" \
+           DisableIMDSv1=false \
+           VpcId=$VPCID \
+           Subnets="$PRIVSUBNETS" \
+           InstanceTypesOverride="t3.medium,t3.large,t2.large" \
+           OnDemandBaseCapacity=0 \
+           OnDemandPercentageAboveBaseCapacity=100 \
+           SpotInstancePools=1
+
+        kubectl get nodes -o wide
+        kubectl get nodes --label-columns eks.amazonaws.com/nodegroup,eks.amazonaws.com/capacityType
+        kubectl get nodes -o json | jq --raw-output '.items[] | .metadata.name,.spec.taints'
+
+(11) Create a Fargate Profile
+
+    (-) Create IAM Role for cluster-awscli fargate execution role
+
+        export TEMP_ROLE_NAME="cluster-awscli-fargate-execution-role"
+
+        aws iam create-role --role-name $TEMP_ROLE_NAME --assume-role-policy-document file://./artifacts/04-DEMO-eks-fargate-iam-policy-trust.json
+        aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy --role-name $TEMP_ROLE_NAME
+
+        aws iam list-roles --query 'Roles[].Arn' | grep cluster-awscli
+
+    (-) Create fargate profile
+
+        export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
+
+        aws eks create-fargate-profile --fargate-profile-name wordpress-demo --region $C9_REGION \
+            --cluster-name cluster-awscli \
+            --pod-execution-role-arn arn:aws:iam::$C9_AWS_ACCT:role/cluster-awscli-fargate-execution-role \
+            --subnets $(echo $PRIVSUBNETS | tr ',' ' ') \
+            --selectors namespace=wordpress-demo,labels={fargate=true}
+
+(12) Create AWS IAM Identity provider so we can use IRSA
+
+    (-) Setup IAM OIDC Provider trust link to EKS cluster's OIDC Provider.  Required for IRSA.
+
+        export OIDC_URL=$(aws eks describe-cluster --name cluster-awscli --query 'cluster.identity.oidc.issuer' --region $C9_REGION | tr -d '\"')
+        echo $OIDC_URL
+        export THUMBPRINT=$(echo | openssl s_client -servername oidc.eks.${C9_REGION}.amazonaws.com -showcerts -connect oidc.eks.${C9_REGION}.amazonaws.com:443 2>&- | tac | sed -n '/-----END CERTIFICATE-----/,/-----BEGIN CERTIFICATE-----/p; /-----BEGIN CERTIFICATE-----/q' | tac | openssl x509 -fingerprint -noout | sed 's/://g' | awk -F= '{print tolower($2)}')
+        echo $THUMBPRINT
+
+        aws iam create-open-id-connect-provider \
+            --url $OIDC_URL \
+            --thumbprint-list $THUMBPRINT \
+            --client-id-list "sts.amazonaws.com"
+
+(13) Install K8s Cluster Autoscaler using IRSA
+
+    (-) Create IAM role & policy for the cluster Autoscaler.  This role will be assumed by the k8s serviceaccount that will be assigned to the cluster autoscaler
+
+        export IRSA_ROLE_NAME="cluster-awscli-irsa-cluster-autoscaler-role"
+        export OIDC_ID=$(aws eks describe-cluster --name cluster-awscli --query 'cluster.identity.oidc.issuer' --region $C9_REGION | tr -d '\"' | awk -F '//' '{print$2}')
+        echo $OIDC_ID
+        export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
+        echo $C9_AWS_ACCT
+
+        sed  -i "s/\[\[AWSACCT\]\]/$C9_AWS_ACCT/g" ./artifacts/04-DEMO-eks-irsa-iam-autoscaler-trust-policy.json
+        sed  -i "s|\[\[OIDC_PROVIDER\]\]|$OIDC_ID|g" ./artifacts/04-DEMO-eks-irsa-iam-autoscaler-trust-policy.json
+
+        aws iam create-role --role-name $IRSA_ROLE_NAME --assume-role-policy-document file://./artifacts/04-DEMO-eks-irsa-iam-autoscaler-trust-policy.json
+        aws iam create-policy --policy-name demo-eks-asg-autoscaler --policy-document file://./artifacts/04-DEMO-eks-irsa-iam-autoscaler-policy.json
+        aws iam attach-role-policy --policy-arn arn:aws:iam::$C9_AWS_ACCT:policy/demo-eks-asg-autoscaler --role-name $IRSA_ROLE_NAME
+
+        aws iam list-roles --query 'Roles[].Arn' | grep cluster-awscli
+
+
+    (-) Deploy Cluster Autoscaler
+
+        sed  -i "s|\[\[AWSACCT\]\]|$C9_AWS_ACCT|g" ./artifacts/04-DEMO-eks-irsa-k8s-autoscaler.yaml
+        sed  -i "s|\[\[IRSA_ROLE_NAME\]\]|$IRSA_ROLE_NAME|g" ./artifacts/04-DEMO-eks-irsa-k8s-autoscaler.yaml
+
+        kubectl get nodes -o wide
+        kubectl apply -f ./artifacts/04-DEMO-eks-irsa-k8s-autoscaler.yaml
+        kubectl logs deployment.apps/cluster-autoscaler -n kube-system -f
+
+(14) Validate k8s dialtone by deploying wordpress using taints/tolerations, nodeaffinity, & podantiaffinity
+
+    (-) Deploy Wordpress & scale front end out to see more nodes added & wordpress front-end running on Spot + On Demand
+
+        kubectl apply -f ./artifacts/04-DEMO-eks-k8s-all-in-one.yaml
+
+
+        kubectl get nodes -o json | jq --raw-output '.items[] | .metadata.name,.spec.taints'
+        kubectl get nodes --label-columns eks.amazonaws.com/nodegroup,eks.amazonaws.com/capacityType
+        kubectl get pod -o=custom-columns=NAME:.metadata.name,STATUS:.status.phase,NODE:.spec.nodeName -n wordpress-demo
+
+        kubectl scale deployment wordpress --replicas=100 -n wordpress-demo
+
+        kubectl logs deployment/cluster-autoscaler -n kube-system -f
+
+        kubectl get nodes --label-columns eks.amazonaws.com/nodegroup,eks.amazonaws.com/capacityType
+        kubectl get pod -o=custom-columns=NAME:.metadata.name,STATUS:.status.phase,NODE:.spec.nodeName -n wordpress-demo | grep wordpress-mysql
+
+        for i in $(kubectl get nodes --label-columns eks.amazonaws.com/nodegroup,eks.amazonaws.com/capacityType | grep Ready | grep SPOT | awk '{print$1}'); do
+          echo "Wordpress Front End Pods running on Spot Node $i"
+          kubectl get pods -o wide --sort-by="{.spec.nodeName}" -n wordpress-demo | grep $i
+        done
+
+        for i in $(kubectl get nodes --label-columns eks.amazonaws.com/nodegroup,eks.amazonaws.com/capacityType | grep Ready | grep DEMAND | awk '{print$1}'); do
+          echo "Wordpress Front End Pods running on ONDEMAND Node $i"
+          kubectl get pods -o wide --sort-by="{.spec.nodeName}" -n wordpress-demo | grep $i
+        done
+
+        kubectl get svc -o wide -n wordpress-demo
+        kubectl get deployment wordpress  -o wide -n wordpress-demo
+
+        kubectl scale deployment wordpress --replicas=3 -n wordpress-demo
+
+
+
+(CLEANUP)
+
+  (-) Cleanup Demo Script(s)
+
+    kubectl delete ns wordpress-demo
+
+    export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
+    echo $C9_AWS_ACCT
+    aws iam detach-role-policy --role-name cluster-awscli-irsa-cluster-autoscaler-role --policy-arn arn:aws:iam::$C9_AWS_ACCT:policy/demo-eks-asg-autoscaler
+    aws iam delete-policy --policy-arn arn:aws:iam::$C9_AWS_ACCT:policy/demo-eks-asg-autoscaler
+    aws iam delete-role --role-name cluster-awscli-irsa-cluster-autoscaler-role
+
+    export OIDC_ID=$(aws eks describe-cluster --name cluster-awscli --query 'cluster.identity.oidc.issuer' --region $C9_REGION | tr -d '\"' | awk -F '//' '{print$2}')
+    aws iam delete-open-id-connect-provider --open-id-connect-provider-arn arn:aws:iam::$C9_AWS_ACCT:oidc-provider/$OIDC_ID
+
+    aws eks delete-fargate-profile --fargate-profile-name wordpress-demo --region $C9_REGION --cluster-name cluster-awscli
+
+    aws cloudformation delete-stack --region $C9_REGION --stack-name cluster-awscli-nodegroup-03-self-managed-bottlerocket
+    aws cloudformation wait stack-delete-complete --region $C9_REGION --stack-name cluster-awscli-nodegroup-03-self-managed-bottlerocket
+    aws cloudformation delete-stack --region $C9_REGION --stack-name cluster-awscli-nodegroup-02-self-managed-mixed
+    aws cloudformation wait stack-delete-complete --region $C9_REGION --stack-name cluster-awscli-nodegroup-02-self-managed-mixed
+    aws eks delete-nodegroup --cluster-name cluster-awscli --nodegroup-name cluster-awscli-nodegroup-01 --region $C9_REGION
+    aws eks wait nodegroup-deleted --cluster-name cluster-awscli --nodegroup-name cluster-awscli-nodegroup-01 --region $C9_REGION
+
+    aws ec2 delete-key-pair --key-name cluster_awscli_KeyPair --region $C9_REGION
+
+    aws iam detach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy --role-name cluster-awscli-fargate-execution-role
+    aws iam delete-role --role-name cluster-awscli-fargate-execution-role
+
+    export TEMP_ROLE_NAME="cluster-awscli-node-self-managed-bottlerocket-group-role"
+    aws iam detach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy --role-name $TEMP_ROLE_NAME
+    aws iam detach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly --role-name $TEMP_ROLE_NAME
+    aws iam detach-role-policy --policy-arn arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy --role-name $TEMP_ROLE_NAME
+    aws iam detach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy --role-name $TEMP_ROLE_NAME
+    aws iam detach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore --role-name $TEMP_ROLE_NAME
+    aws iam delete-role --role-name $TEMP_ROLE_NAME
+
+    export TEMP_ROLE_NAME="cluster-awscli-node-self-managed-al2-mixed-instance-group-role"
+    aws iam detach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy --role-name $TEMP_ROLE_NAME
+    aws iam detach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly --role-name $TEMP_ROLE_NAME
+    aws iam detach-role-policy --policy-arn arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy --role-name $TEMP_ROLE_NAME
+    aws iam detach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy --role-name $TEMP_ROLE_NAME
+    aws iam delete-role --role-name $TEMP_ROLE_NAME
+
+    export TEMP_ROLE_NAME="cluster-awscli-node-managed-al2-group-role"
+    aws iam detach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy --role-name $TEMP_ROLE_NAME
+    aws iam detach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly --role-name $TEMP_ROLE_NAME
+    aws iam detach-role-policy --policy-arn arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy --role-name $TEMP_ROLE_NAME
+    aws iam detach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy --role-name $TEMP_ROLE_NAME
+    aws iam delete-role --role-name $TEMP_ROLE_NAME
+
+    aws iam detach-role-policy --policy-arn arn:aws:iam::aws:policy/AmazonEKSClusterPolicy --role-name cluster-awscli-cluster-role
+    aws iam detach-role-policy --policy-arn arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy --role-name cluster-awscli-cluster-role
+    aws iam delete-role --role-name cluster-awscli-cluster-role
+
+    aws iam detach-role-policy --policy-arn arn:aws:iam::$C9_AWS_ACCT:policy/cluster-awscli-creator --role-name cluster-awscli-creator-role
+    aws iam delete-policy --policy-arn arn:aws:iam::$C9_AWS_ACCT:policy/cluster-awscli-creator
+    aws iam delete-role --role-name cluster-awscli-creator-role
+
+    aws iam list-roles --query 'Roles[].Arn' | grep cluster-awscli
+
+    aws eks delete-cluster --name cluster-awscli --region $C9_REGION
+
+  (-) Cleanup Pre-Reqs Script(s)
+
+    aws cloudformation delete-stack --region $C9_REGION --stack-name eks-demos-c9-dev-desktop
+    aws cloudformation wait stack-delete-complete --region $C9_REGION --stack-name eks-demos-c9-dev-desktop
+    aws cloudformation delete-stack --region $C9_REGION --stack-name eks-demos-networking

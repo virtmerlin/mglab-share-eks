@@ -1,0 +1,164 @@
+=====================================================================
+GIVEN:
+  - A developer desktop with docker & git installed (AWS Cloud9)
+  - A VPC created with EKS best practices
+WHEN:
+  - I install eksctl on the desktop
+  - I create a eksctl cluster yaml
+  - I issue an eksctl create cluster
+THEN:
+  - I will get all required IAM Roles & security groups for an EKS cluster & 1 Nodegroup
+  - I will get a EKS cluster using the existing VPC
+  - I will get an Amazon Linux Managed Nodegroup
+  - I will get a Fargate Profile
+SO THAT:
+  - I can run my wordpress application
+=====================================================================
+(0) PreReqs
+
+    (-) Set the AWS Region variable for where you want to run these demos
+
+        export C9_REGION=[[YOUR_REGION]]
+
+    (-) Create/Update an EKS style VPC from your Desktop using AWS Cloudformation
+
+        aws cloudformation deploy --region $C9_REGION --template-file ../01-docker-build-wordpress/pre-reqs/cfn-amazon-eks-vpc-private-subnets.cfn \
+          --stack-name eks-demos-networking
+
+    (-) Create/Update C9 Instance within the VPC. You will run all subsequent demo steps from a console on the C9 Instance.
+
+        aws cloudformation deploy --region $C9_REGION --template-file ../01-docker-build-wordpress/pre-reqs/cfn-c9-desktop.cfn \
+          --stack-name eks-demos-c9-dev-desktop
+
+    (-) Navigate to C9 Instance 'terminal' window of the IDE & resize the disk
+
+        https://console.aws.amazon.com/cloud9/home?
+        ---> Open IDE to exec all remaining demo commands within the C9 desktop
+
+        cd ~/environment
+        if [ ! -d mglab-share-eks ]; then git clone https://github.com/virtmerlin/mglab-share-eks.git; fi
+        chmod 755 ./mglab-share-eks/demos/01-docker-build-wordpress/pre-reqs/resize.sh
+        ./mglab-share-eks/demos/01-docker-build-wordpress/pre-reqs/resize.sh
+        export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
+        echo $C9_REGION
+
+    (-) In the C9 Desktop ... Edit prefs to not use automated AWS creds and pass your AWS Keys to the CLI otherwise eksctl will fail
+
+        ----> Cloud9/Preferences
+          ----> AWS Settings
+            ----> Disable AWS managed temporary credentials radial button
+
+        aws configure
+
+(1) Install/Update eksctl
+
+    (-)
+        cd ~/environment/mglab-share-eks/demos/04-create-advanced-cluster-eksctl-existing-vpc
+        curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+        sudo mv /tmp/eksctl /usr/local/bin
+        eksctl version
+
+(2) Tag Existing VPC Subnets for the new cluster we are about to create, this is required for the AWS cloud controller to deploy Load Balancer
+
+    (-) Get EKS VPC Cloudformation Outputs & loop thru subnets to tag them
+
+        export SUBNETS_ALL=$(aws cloudformation --region $C9_REGION \
+        describe-stacks \
+        --stack-name eks-demos-networking \
+        --query "Stacks[].Outputs[?OutputKey=='SubnetIds'].[OutputValue]" \
+        --output text)
+        echo $SUBNETS_ALL
+
+        for i in $(echo $SUBNETS_ALL | sed "s/,/ /g")
+            do
+              aws ec2 create-tags --region $C9_REGION \
+                --resources $i --tags Key=kubernetes.io/cluster/cluster-eksctl,Value=shared
+            done
+
+(3) Create Cluster with EKSctl
+
+    (-) Create ec2 Keypair so we can ssh into nodes if we need to
+
+        aws ec2 create-key-pair --key-name cluster_eksctl_KeyPair --region $C9_REGION | grep KeyMaterial | awk -F '"' '{print$4}' > cluster_eksctl_key.pem
+        chmod 700 cluster_eksctl_key.pem
+
+    (-) Grab Private Subnet variables from the VPC CFN stack to place into the eksctl cluster yaml
+
+        export SUBNET1=$(aws cloudformation --region $C9_REGION \
+        describe-stacks \
+        --stack-name eks-demos-networking \
+        --query "Stacks[].Outputs[?OutputKey=='Subnet1PrivateEKSctlRef'].[OutputValue]" \
+        --output text)
+        echo $SUBNET1
+
+        export SUBNET2=$(aws cloudformation --region $C9_REGION \
+        describe-stacks \
+        --stack-name eks-demos-networking \
+        --query "Stacks[].Outputs[?OutputKey=='Subnet2PrivateEKSctlRef'].[OutputValue]" \
+        --output text)
+        echo $SUBNET2
+
+    (-) Create EKS Cluster & IAM & Managed Nodegroup & Fargate Profile using existing VPC
+
+        export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
+        export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
+        sed  -i "s/\[\[REGION\]\]/$C9_REGION/g" ./artifacts/04-DEMO-eks-eksctl-cluster.yaml
+        sed  -i "s/\[\[SUBNET1\]\]/$SUBNET1/g" ./artifacts/04-DEMO-eks-eksctl-cluster.yaml
+        sed  -i "s/\[\[SUBNET2\]\]/$SUBNET2/g" ./artifacts/04-DEMO-eks-eksctl-cluster.yaml
+        sed  -i "s/\[\[AWSACCT\]\]/$C9_AWS_ACCT/g" ./artifacts/04-DEMO-eks-eksctl-cluster.yaml
+
+        eksctl create cluster -f ./artifacts/04-DEMO-eks-eksctl-cluster.yaml
+
+    (-) Install kubectl & review your kubeconfig
+
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        curl -LO "https://dl.k8s.io/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
+        echo "$(<kubectl.sha256) kubectl" | sha256sum --check
+        sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+        export AWS_ACCESS_KEY_ID=$(cat ~/.aws/credentials | grep aws_access_key_id | awk '{print$3}')
+        export AWS_SECRET_ACCESS_KEY=$(cat ~/.aws/credentials | grep aws_secret_access_key | awk '{print$3}')
+        aws sts get-caller-identity
+
+        eksctl utils write-kubeconfig --name cluster-eksctl --region $C9_REGION
+        kubectl config view --minify
+        kubectl get all -A
+
+    (-) Deploy Cluster Autoscaler
+
+        export CA_SA_ARN=$(eksctl get iamserviceaccount --cluster cluster-eksctl | grep cluster-autoscaler | awk '{print$3}')
+        echo $CA_SA_ARN
+
+        curl https://raw.githubusercontent.com/kubernetes/autoscaler/master/cluster-autoscaler/cloudprovider/aws/examples/cluster-autoscaler-autodiscover.yaml | sed "s/<YOUR.*NAME>/cluster-eksctl/;s/v1.17.3/v1.18.3/" | kubectl apply -f -
+        kubectl annotate serviceaccount cluster-autoscaler \
+          -n kube-system \
+          eks.amazonaws.com/role-arn=arn:aws:iam::$C9_AWS_ACCT:role/$CA_SA_ARN
+        kubectl patch deployment cluster-autoscaler \
+          -n kube-system \
+          -p '{"spec":{"template":{"metadata":{"annotations":{"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"}}}}}'
+
+        kubectl logs deployment.apps/cluster-autoscaler -n kube-system -f
+
+    (-) Deploy Wordpress with PHP front end on Fargate & mysql backend on managed Nodegroup
+
+        kubectl apply -f ./artifacts/04-DEMO-k8s-all-in-one-fargate.yaml
+        watch kubectl get pods -o wide -n wordpress-fargate
+        kubectl get nodes
+
+        kubectl get svc -o wide -n wordpress-fargate
+
+    (-) Navigate to the wordpress service
+
+
+(CLEANUP)
+
+  (-) Cleanup Demo Script(s)
+
+    eksctl delete cluster cluster-eksctl --region $C9_REGION
+    aws ec2 delete-key-pair --key-name cluster_eksctl_KeyPair
+
+  (-) Cleanup Pre-Reqs Script(s)
+
+    aws cloudformation delete-stack --region $C9_REGION --stack-name eks-demos-c9-dev-desktop
+    aws cloudformation wait stack-delete-complete --region $C9_REGION --stack-name eks-demos-c9-dev-desktop
+    aws cloudformation delete-stack --region $C9_REGION --stack-name eks-demos-networking

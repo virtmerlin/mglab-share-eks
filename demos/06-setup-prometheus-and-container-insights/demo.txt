@@ -1,0 +1,209 @@
+=====================================================================
+GIVEN:
+  - A developer desktop with docker & git installed (AWS Cloud9)
+  - An EKS cluster created via eksctl
+WHEN:
+  - I install the kubernetes metrics-server
+  - I install the cloudwatch container insights agents & fluentbit
+  - I install the cloudwatch prometheus forwarder
+  - I enable the EKS cluster control plane logging
+THEN:
+  - I will get the ''/apis/metrics.k8s.io/'' api added to my kubernetes cluster
+  - I will get all base metrics from pods & node forwarded to Cloudwatch
+  - I will get all pod & node logs forwarded to Cloudwatch
+  - I will get all Control Plane logs forwarded to Cloudwatch
+  - I will get all Control Plane Prometheus Metrics forwarded to Cloudwatch
+SO THAT:
+  - I can run kubectl top commands on pods & nodes (metrics-server)
+  - I can pass metrics to the k8s HPA & VPA (metrics-server)
+  - I can query & visualize metrics for all pods/nodes across my EKS clusters in CloudWatch (container insights agents)
+  - I can query & visualize logs for all pods/nodes across my EKS clusters in CloudWatch (fluentbit)
+  - I can query & visualize metrics for My EKS Control Plane in CloudWatch (cloudwatch prometheus forwarder)
+  - I can query & visualize logs for My EKS Control Plane in CloudWatch (control plane logging)
+
+=====================================================================
+(0) Requires
+
+    04-create-advanced-cluster-eksctl-existing-vpc
+
+(0) PreReqs
+
+    (-) Set the AWS Region variable for where you want to run these demos
+
+        export C9_REGION=[[YOUR_REGION]]
+
+    (-) Create/Update an EKS style VPC from your Desktop using AWS Cloudformation
+
+        aws cloudformation deploy --region $C9_REGION --template-file ../01-docker-build-wordpress/pre-reqs/cfn-amazon-eks-vpc-private-subnets.cfn \
+          --stack-name eks-demos-networking
+
+    (-) Create/Update C9 Instance within the VPC. You will run all subsequent demo steps from a console on the C9 Instance.
+
+        aws cloudformation deploy --region $C9_REGION --template-file ../01-docker-build-wordpress/pre-reqs/cfn-c9-desktop.cfn \
+          --stack-name eks-demos-c9-dev-desktop
+
+    (-) Navigate to C9 Instance 'terminal' window of the IDE & resize the disk
+
+        https://console.aws.amazon.com/cloud9/home?
+        ---> Open IDE to exec all remaining demo commands within the C9 desktop
+
+        cd ~/environment
+        if [ ! -d mglab-share-eks ]; then git clone https://github.com/virtmerlin/mglab-share-eks.git; fi
+        chmod 755 ./mglab-share-eks/demos/01-docker-build-wordpress/pre-reqs/resize.sh
+        ./mglab-share-eks/demos/01-docker-build-wordpress/pre-reqs/resize.sh
+        export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
+        echo $C9_REGION
+
+    (-) In the C9 Desktop ... Edit prefs to not use automated AWS creds and pass your AWS Keys to the CLI otherwise eksctl will fail
+
+        ----> Cloud9/Preferences
+          ----> AWS Settings
+            ----> Disable AWS managed temporary credentials radial button
+
+        aws configure
+
+(1) Install The Kubernetes Metrics Server
+
+    (-) Set cluster context to existing eks cluster with the already CloudWatchAgentServerPolicy attached to EC2 Instance Roles
+
+        cd ~/environment/mglab-share-eks/demos/06-setup-prometheus-and-container-insights
+
+        export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
+        export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
+
+        aws eks update-kubeconfig --name cluster-eksctl --region $C9_REGION
+        kubectl config use-context arn:aws:eks:$C9_REGION:$C9_AWS_ACCT:cluster/cluster-eksctl
+
+    (-) Install kuberntes metrics-server
+
+        kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.3.6/components.yaml
+        kubectl get nodes
+        kubectl top nodes
+        kubectl top pods -A
+        kubectl get apiservice v1beta1.metrics.k8s.io -o json | jq '.status'
+        kubectl get --raw /apis/metrics.k8s.io/v1beta1/nodes
+
+        kubectl get pods -A | grep metrics-server
+
+    (-) Now we can feed base pod/node metrics to the HPA, VPA, & kubectl
+
+(2) Install Container Insights metrics agent & fluent-bit deamon sets on all Nodes
+
+    (-) Install both daemonsets
+
+        FluentBitHttpPort='2020'
+        FluentBitReadFromHead='Off'
+        [[ ${FluentBitReadFromHead} = 'On' ]] && FluentBitReadFromTail='Off'|| FluentBitReadFromTail='On'
+        [[ -z ${FluentBitHttpPort} ]] && FluentBitHttpServer='Off' || FluentBitHttpServer='On'
+        curl https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/quickstart/cwagent-fluent-bit-quickstart.yaml | sed 's/{{cluster_name}}/'cluster-eksctl'/;s/{{region_name}}/'${C9_REGION}'/;s/{{http_server_toggle}}/"'${FluentBitHttpServer}'"/;s/{{http_server_port}}/"'${FluentBitHttpPort}'"/;s/{{read_from_head}}/"'${FluentBitReadFromHead}'"/;s/{{read_from_tail}}/"'${FluentBitReadFromTail}'"/' | kubectl apply -f -
+
+        kubectl get ds -n amazon-cloudwatch
+
+    (-) Verify that we can collect metrics & logs on pods
+
+        (-) Verify Metrics via Container Insights Map
+
+        ---> Open Console to https://console.aws.amazon.com/cloudwatch/home?#container-insights:infrastructure/map
+        ---> Select Your Region ... you will see your cluster & metrics widgets
+
+        (-) Verify Logs via Log groups
+
+        ---> Open Console to https://console.aws.amazon.com/cloudwatch/home?#logsV2:log-groups/log-group/$252Faws$252Fcontainerinsights$252Fcluster-eksctl$252Fapplication
+        ---> Select Your Region ... you will see your pod logs
+
+    (-) Now we can view node/pod Logs/Metrics in Cloud Watch Container Insights
+
+        ---> Open Console to https:/console.aws.amazon.com/cloudwatch/home?#logsV2:logs-insights
+        ---> Click on the 'Select Groups' & select  /aws/containerinsights/cluster-eksctl/application
+        ---> Enter the below query in the Query Box
+
+          fields @timestamp, kubernetes.pod_name, log
+          | filter kubernetes.namespace_name="amazon-cloudwatch"
+          | sort @timestamp desc
+            
+(3) Enable Control Plane logging to CloudWatch
+
+    (-) Using eksctl to enable all logging
+
+        eksctl utils update-cluster-logging --enable-types all --name cluster-eksctl --region $C9_REGION --approve
+
+    (-) Verify Logs via Log groups
+
+        ---> Open Console to https://console.aws.amazon.com/cloudwatch/home?#logsV2:log-groups/log-group/$252Faws$252Feks$252Fcluster-eksctl$252Fcluster
+        ---> Select Your Region ... you will see your pod logs
+
+    (-) Now we can view Control Plane logs in Cloud Watch Container Insights
+
+(4) Install the cwagent-prometheus forwarder so it can scrape metrics from the Control Plane and send to CloudWatch
+
+    (-) Install the cwagent prometheus forwarder
+
+        kubectl apply -f ./artifacts/06-DEMO-prometheus-eks.yaml
+
+        kubcetl get all -n amazon-cloudwatch | grep prometheus
+        kubectl logs deployment.apps/cwagent-prometheus -n amazon-cloudwatch -f
+
+    (-) Verify Control plane Metrics
+
+        ---> Open Console to https://console.aws.amazon.com/cloudwatch/home?region=us-west-1#metricsV2:graph
+        ---> Click on the Source tab and enter data below then 'update'
+            {
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "us-west-1",
+                "stat": "Average",
+                "period": 5,
+                "metrics": [
+                    [ "ContainerInsights/Prometheus", "etcd_object_counts", "resource", "daemonsets.apps", "ClusterName", "cluster-eksctl" ],
+                    [ "...", "endpointslices.discovery.k8s.io", ".", "." ],
+                    [ "...", "replicasets.apps", ".", "." ],
+                    [ "...", "secrets", ".", "." ],
+                    [ "...", "endpoints", ".", "." ],
+                    [ "...", "services", ".", "." ],
+                    [ "...", "serviceaccounts", ".", "." ],
+                    [ "...", "configmaps", ".", "." ],
+                    [ "...", "deployments.apps", ".", "." ]
+                ]
+            }
+
+    (-) Now we can collect Control Plane Prometheus format metrics in Cloud Watch
+
+(OPTIONAL) Install a full Prometheus TSDB in our cluster so we can scrape from the API, Pods, & Nodes within our cluster and query Prometheus directly
+
+    (-) Install Helm CLI
+
+        curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get-helm-3 > get_helm.sh
+        chmod 700 get_helm.sh
+        ./get_helm.sh
+
+    (-) Install Prometheus Chart
+
+        kubectl create namespace prometheus
+        helm repo update
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+
+        helm install prometheus prometheus-community/prometheus \
+        --namespace prometheus \
+        --set alertmanager.persistentVolume.storageClass="gp2",server.persistentVolume.storageClass="gp2" \
+        --set server.service.type="LoadBalancer" \
+        --set server.resources.limits.cpu="1000m" \
+        --set server.resources.limits.memory="1024Mi"
+
+        kubectl get svc -o wide -n prometheus | grep server
+
+        ---> Open elb address
+
+
+(CLEANUP)
+
+  (-) Cleanup Demo Script(s)
+
+      helm delete prometheus prometheus-community/prometheus --namespace prometheus
+      curl https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/quickstart/cwagent-fluent-bit-quickstart.yaml | sed 's/{{cluster_name}}/'cluster-eksctl'/;s/{{region_name}}/'${C9_REGION}'/;s/{{http_server_toggle}}/"'${FluentBitHttpServer}'"/;s/{{http_server_port}}/"'${FluentBitHttpPort}'"/;s/{{read_from_head}}/"'${FluentBitReadFromHead}'"/;s/{{read_from_tail}}/"'${FluentBitReadFromTail}'"/' | kubectl delete -f -
+      kubectl delete -f https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.3.6/components.yaml
+
+  (-) Cleanup Pre-Reqs Script(s)
+
+      aws cloudformation delete-stack --region $C9_REGION --stack-name eks-demos-c9-dev-desktop
+      aws cloudformation wait stack-delete-complete --region $C9_REGION --stack-name eks-demos-c9-dev-desktop
+      aws cloudformation delete-stack --region $C9_REGION --stack-name eks-demos-networking

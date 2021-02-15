@@ -1,0 +1,36 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: "simple-k8s-codepipeline"
+  labels:
+    name: "simple-k8s-codepipeline"
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: simple-k8s-codepipeline-role
+  namespace: simple-k8s-codepipeline
+rules:
+- apiGroups: ["", "extensions", "apps"]
+  resources: ["*"]
+  verbs: ["*"]
+- apiGroups: ["batch"]
+  resources:
+  - jobs
+  - cronjobs
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: simple-k8s-codepipeline-admin
+  namespace: simple-k8s-codepipeline
+subjects:
+- kind: User
+  name: codebuild
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: simple-k8s-codepipeline-role
+  apiGroup: rbac.authorization.k8s.io

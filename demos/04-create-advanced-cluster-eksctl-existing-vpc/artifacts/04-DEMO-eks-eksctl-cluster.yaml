@@ -1,0 +1,72 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: cluster-eksctl
+  region: [[REGION]]
+
+vpc:
+  subnets:
+    private:
+      [[SUBNET1]]
+      [[SUBNET2]]
+
+managedNodeGroups:
+  - name: managed-ng-01
+    instanceType: t3.medium
+    minSize: 2
+    desiredCapacity: 2
+    maxSize: 4
+    privateNetworking: true
+    volumeSize: 64
+    ssh:
+      allow: true
+      publicKeyName: cluster_eksctl_KeyPair
+    iam:
+      withAddonPolicies:
+        ebs: true
+        fsx: true
+        efs: true
+        cloudWatch: true
+    tags:
+      # EC2 tags required for cluster-autoscaler auto-discovery
+      k8s.io/cluster-autoscaler/enabled: "true"
+      k8s.io/cluster-autoscaler/cluster-eksctl: "owned"
+
+fargateProfiles:
+  - name: fp-wordpress
+    selectors:
+      - namespace: wordpress-fargate
+        labels:
+            fargate: 'true'
+
+iam:
+  withOIDC: true
+  serviceAccounts:
+  - metadata:
+      name: aws-load-balancer-controller
+      namespace: kube-system
+    attachPolicyARNs:
+    - "arn:aws:iam::[[AWSACCT]]:policy/AWSLoadBalancerControllerIAMPolicy"
+  - metadata:
+      name: cluster-autoscaler
+      namespace: kube-system
+      labels: {aws-usage: "cluster-ops"}
+    attachPolicy: # inline policy can be defined along with `attachPolicyARNs`
+      Version: "2012-10-17"
+      Statement:
+      - Effect: Allow
+        Action:
+        - "autoscaling:DescribeAutoScalingGroups"
+        - "autoscaling:DescribeAutoScalingInstances"
+        - "autoscaling:DescribeLaunchConfigurations"
+        - "autoscaling:DescribeTags"
+        - "autoscaling:SetDesiredCapacity"
+        - "autoscaling:TerminateInstanceInAutoScalingGroup"
+        - "ec2:DescribeLaunchTemplateVersions"
+        Resource: '*'
+
+addons:
+- name: vpc-cni
+  attachPolicyARNs:
+    - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy

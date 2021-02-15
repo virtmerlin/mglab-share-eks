@@ -1,0 +1,16 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: A Cloud9 Environment for EKS Demo(s)
+
+Resources:
+  MyC9Environment:
+    Type: "AWS::Cloud9::EnvironmentEC2"
+    Properties:
+      Name: c9-eks-demo-dev-wkstn
+      InstanceType: t3.large
+      SubnetId: !ImportValue eks-demos-networking-C9Subnet
+      AutomaticStopTimeMinutes: 60
+
+Outputs:
+  MyC9Environment:
+    Description: Environment provisioned
+    Value: !GetAtt  MyC9Environment.Name

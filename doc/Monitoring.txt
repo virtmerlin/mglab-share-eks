@@ -1,0 +1,54 @@
+(I)   "K8s Metrics Server for HPA & VPA"
+      "https://docs.aws.amazon.com/eks/latest/userguide/metrics-server.html"
+
+
+      kubectl get all -A | grep metrics-server
+
+      kube-system         pod/metrics-server-5f956b6d5f-hl5wm                 1/1     Running   0          110m
+      kube-system   service/metrics-server                  ClusterIP      10.100.149.237   <none>                                                                    443/TCP         110m
+      kube-system   deployment.apps/metrics-server                  1/1     1            1           110m
+      kube-system   replicaset.apps/metrics-server-5f956b6d5f                 1         1         1       110m
+
+
+(II)  "Prometheus to get Control Plane metrics & Fwd to CloudWatch"
+      "https://docs.aws.amazon.com/eks/latest/userguide/prometheus.html"
+      "https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/ContainerInsights-Prometheus-Setup-configure.html#ContainerInsights-Prometheus-Setup-new-exporters"
+
+      kubectl get all -n prometheus
+      NAME                                                READY   STATUS    RESTARTS   AGE
+      pod/prometheus-alertmanager-5f497b4f6f-99thq        2/2     Running   0          85m
+      pod/prometheus-kube-state-metrics-c65b87574-k9v6t   1/1     Running   0          85m
+      pod/prometheus-node-exporter-tbtst                  1/1     Running   0          85m
+      pod/prometheus-node-exporter-vlvcv                  1/1     Running   0          85m
+      pod/prometheus-pushgateway-674585bcdd-w96md         1/1     Running   0          85m
+      pod/prometheus-server-5f874dbffd-pppq5              2/2     Running   0          85m
+
+      NAME                                    TYPE           CLUSTER-IP      EXTERNAL-IP                                                               PORT(S)        AGE
+      service/prometheus-alertmanager         ClusterIP      10.100.61.243   <none>                                                                    80/TCP         86m
+      service/prometheus-kube-state-metrics   ClusterIP      10.100.19.128   <none>                                                                    8080/TCP       86m
+      service/prometheus-node-exporter        ClusterIP      None            <none>                                                                    9100/TCP       86m
+      service/prometheus-pushgateway          ClusterIP      10.100.38.139   <none>                                                                    9091/TCP       86m
+      service/prometheus-server               LoadBalancer   10.100.193.80   a199f1a46dc78474ebcba310a20d5aa1-1847744736.us-west-1.elb.amazonaws.com   80:31856/TCP   86m
+
+      NAME                                      DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
+      daemonset.apps/prometheus-node-exporter   2         2         2       2            2           <none>          86m
+
+      NAME                                            READY   UP-TO-DATE   AVAILABLE   AGE
+      deployment.apps/prometheus-alertmanager         1/1     1            1           86m
+      deployment.apps/prometheus-kube-state-metrics   1/1     1            1           86m
+      deployment.apps/prometheus-pushgateway          1/1     1            1           86m
+      deployment.apps/prometheus-server               1/1     1            1           86m
+
+      NAME                                                      DESIRED   CURRENT   READY   AGE
+      replicaset.apps/prometheus-alertmanager-5f497b4f6f        1         1         1       86m
+      replicaset.apps/prometheus-kube-state-metrics-c65b87574   1         1         1       86m
+      replicaset.apps/prometheus-pushgateway-674585bcdd         1         1         1       86m
+      replicaset.apps/prometheus-server-5f874dbffd              1         1         1       86m
+
+(III) "Install cloud watch Container Insights on Nodes for Metrics & Log Aggregation"
+      "https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/deploy-container-insights-EKS.html"
+
+      kubectl get ds -n amazon-cloudwatch
+      NAME                 DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
+      cloudwatch-agent     2         2         2       2            2           <none>          8h
+      fluentd-cloudwatch   2         2         2       2            2           <none>          8h

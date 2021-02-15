@@ -1,0 +1,71 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: "simple-k8s-codepipeline"
+  labels:
+    name: "simple-k8s-codepipeline"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: simple-k8s
+  namespace: simple-k8s-codepipeline
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 8000
+  selector:
+    app: simple-k8s
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: simple-k8s-pv-claim
+  namespace: simple-k8s-codepipeline
+  labels:
+    app: simple-k8s
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 8Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simple-k8s
+  namespace: simple-k8s-codepipeline
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: simple-k8s
+  template:
+    metadata:
+      labels:
+        app: simple-k8s
+    spec:
+      containers:
+        - name: simple-k8s
+          image: CONTAINER_IMAGE
+          securityContext:
+            privileged: false
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+          ports:
+            - containerPort: 8000
+          volumeMounts:
+          - name: simple-k8s-persistent-storage
+            mountPath: /tmp/sample-app
+      volumes:
+      - name: simple-k8s-persistent-storage
+        persistentVolumeClaim:
+          claimName: simple-k8s-pv-claim

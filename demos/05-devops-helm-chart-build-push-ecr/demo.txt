@@ -1,0 +1,164 @@
+=====================================================================
+GIVEN:
+  - A developer desktop with docker & git installed (AWS Cloud9)
+  - An EKS cluster created via eksctl
+  - A helm chart directory prepared for simple nginx deployment
+WHEN:
+  - I install the helm cli
+  - I create an ECR repository
+  - I build my helm chart my C9 desktop
+THEN:
+  - I will get a local helm chart
+  - I will get an ECR repository
+SO THAT:
+  - I can push the helm chart up to ECR
+  - I can deploy nginx using the chart I just pushed
+
+=====================================================================
+(0) Requires
+
+    04-create-advanced-cluster-eksctl-existing-vpc
+
+(0) PreReqs
+
+    (-) Set the AWS Region variable for where you want to run these demos
+
+        export C9_REGION=[[YOUR_REGION]]
+
+    (-) Create/Update an EKS style VPC from your Desktop using AWS Cloudformation
+
+        aws cloudformation deploy --region $C9_REGION --template-file ../01-docker-build-wordpress/pre-reqs/cfn-amazon-eks-vpc-private-subnets.cfn \
+          --stack-name eks-demos-networking
+
+    (-) Create/Update C9 Instance within the VPC. You will run all subsequent demo steps from a console on the C9 Instance.
+
+        aws cloudformation deploy --region $C9_REGION --template-file ../01-docker-build-wordpress/pre-reqs/cfn-c9-desktop.cfn \
+          --stack-name eks-demos-c9-dev-desktop
+
+    (-) Navigate to C9 Instance 'terminal' window of the IDE & resize the disk
+
+        https://console.aws.amazon.com/cloud9/home?
+        ---> Open IDE to exec all remaining demo commands within the C9 desktop
+
+        cd ~/environment
+        if [ ! -d mglab-share-eks ]; then git clone https://github.com/virtmerlin/mglab-share-eks.git; fi
+        chmod 755 ./mglab-share-eks/demos/01-docker-build-wordpress/pre-reqs/resize.sh
+        ./mglab-share-eks/demos/01-docker-build-wordpress/pre-reqs/resize.sh
+        export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
+        echo $C9_REGION
+
+    (-) In the C9 Desktop ... Edit prefs to not use automated AWS creds and pass your AWS Keys to the CLI otherwise eksctl will fail
+
+        ----> Cloud9/Preferences
+          ----> AWS Settings
+            ----> Disable AWS managed temporary credentials radial button
+
+        aws configure
+
+(1) Deploy CodeCommit, ECR, & Code Pipeline/Build Cloud Formation
+
+  (-) Create ECR repository to share our image
+
+        cd ~/environment/mglab-share-eks/demos/05-devops-helm-chart-build-push-ecr
+        aws ecr create-repository --repository-name 05-devops-helm-chart-build-push-ecr --region $C9_REGION
+
+(2) Install kubectl & Update our kubeconfig to interact with the cluster created in 04-create-advanced-cluster-eksctl-existing-vpc
+
+  (-) Install kubectl & review your kubeconfig
+
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        curl -LO "https://dl.k8s.io/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
+        echo "$(<kubectl.sha256) kubectl" | sha256sum --check
+        sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+        export AWS_ACCESS_KEY_ID=$(cat ~/.aws/credentials | grep aws_access_key_id | awk '{print$3}')
+        export AWS_SECRET_ACCESS_KEY=$(cat ~/.aws/credentials | grep aws_secret_access_key | awk '{print$3}')
+        aws sts get-caller-identity
+
+        eksctl utils write-kubeconfig --name cluster-eksctl --region $C9_REGION
+        kubectl config view --minify
+        kubectl get all -A
+
+(3)  Install the helm cli
+
+  (-) Install helm v3
+
+        curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get-helm-3 > get_helm.sh
+        chmod 700 get_helm.sh
+        ./get_helm.sh
+
+(4)  Build helm Chart & Store on C9 Desktop
+
+  (-)
+        cd ~/environment/mglab-share-eks/demos/05-devops-helm-chart-build-push-ecr/artifacts
+        helm package demo-nginx-helm
+
+(5)  Push Chart up to ECR
+
+  (-) Enable OCI support in Helm v3 CLI
+
+        export HELM_EXPERIMENTAL_OCI=1
+
+  (-) Get current AWS account & build local helm OCI compliant chart
+
+        export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
+        helm chart save ./demo-nginx-helm $C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com/05-devops-helm-chart-build-push-ecr:demo-nginx-helm
+        helm chart ls
+
+  (-) AuthN to ECR and push up Chart
+
+        aws ecr get-login-password | helm registry login --username AWS --password-stdin $C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com
+        helm chart push $C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com/05-devops-helm-chart-build-push-ecr:demo-nginx-helm
+
+(6)  Deploy Chart from ECR to eks cluster 'cluster-eksctl'
+
+  (-) Pull OCI Helm chart down local
+
+        mkdir -p ~/environment/blah && cd ~/environment/blah
+        ls
+        helm chart pull $C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com/05-devops-helm-chart-build-push-ecr:demo-nginx-helm
+        helm chart export $C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com/05-devops-helm-chart-build-push-ecr:demo-nginx-helm
+        ls -all
+
+  (-) Show chart possible values to override
+
+        helm show chart demo-nginx-helm
+        helm show values demo-nginx-helm
+
+  (-) Install chart with default values
+
+        helm install my-nginx demo-nginx-helm
+        helm status my-nginx -n default
+        helm ls -A
+
+        helm get values my-nginx -n default
+        helm get values my-nginx -n default --all
+
+  (-) Override chart values for image with public ECR image
+
+        helm upgrade \
+              --set image.repository=public.ecr.aws/u3e9a9s8/nginx \
+              --set image.tag=latest \
+              my-nginx ./demo-nginx-helm  -n default
+
+        kubectl get deploy my-nginx-demo-nginx-helm -n default -o yaml | grep image
+        kubectl get deploy my-nginx-demo-nginx-helm -n default
+
+  (-) Rollback revision
+
+        helm rollback my-nginx 1 -n default
+        kubectl get deploy my-nginx-demo-nginx-helm -n default -o yaml | grep image
+        kubectl get deploy my-nginx-demo-nginx-helm -n default
+        helm history my-nginx -n default
+
+(CLEANUP)
+
+  (-) Cleanup Demo Script(s)
+
+        aws ecr delete-repository --repository-name 05-devops-helm-chart-build-push-ecr --region $C9_REGION --force
+        helm delete my-nginx -n default
+
+  (-) Cleanup Pre-Reqs Script(s)
+
+        aws cloudformation delete-stack --region $C9_REGION --stack-name eks-demos-c9-dev-desktop
+        aws cloudformation wait stack-delete-complete --region $C9_REGION --stack-name eks-demos-c9-dev-desktop

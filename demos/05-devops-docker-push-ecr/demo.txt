@@ -1,0 +1,131 @@
+=====================================================================
+GIVEN:
+  - A developer desktop with docker & git installed (AWS Cloud9)
+  - An EKS cluster created via eksctl
+  - A Dockerfile for wordpress php frontend
+WHEN:
+  - I create an ECR repository
+  - I build my Wordpress Front End on my C9 desktop
+THEN:
+  - I will get a local OCI image
+  - I will get an ECR repository
+SO THAT:
+  - I can tag the local image and push it up to ECR
+  - I can deploy wordpress using the image I just pushed
+
+=====================================================================
+(0) Requires
+
+    04-create-advanced-cluster-eksctl-existing-vpc
+
+(0) PreReqs
+
+    (-) Set the AWS Region variable for where you want to run these demos
+
+        export C9_REGION=[[YOUR_REGION]]
+
+    (-) Create/Update an EKS style VPC from your Desktop using AWS Cloudformation
+
+        aws cloudformation deploy --region $C9_REGION --template-file ../01-docker-build-wordpress/pre-reqs/cfn-amazon-eks-vpc-private-subnets.cfn \
+          --stack-name eks-demos-networking
+
+    (-) Create/Update C9 Instance within the VPC. You will run all subsequent demo steps from a console on the C9 Instance.
+
+        aws cloudformation deploy --region $C9_REGION --template-file ../01-docker-build-wordpress/pre-reqs/cfn-c9-desktop.cfn \
+          --stack-name eks-demos-c9-dev-desktop
+
+    (-) Navigate to C9 Instance 'terminal' window of the IDE & resize the disk
+
+        https://console.aws.amazon.com/cloud9/home?
+        ---> Open IDE to exec all remaining demo commands within the C9 desktop
+
+        cd ~/environment
+        if [ ! -d mglab-share-eks ]; then git clone https://github.com/virtmerlin/mglab-share-eks.git; fi
+        chmod 755 ./mglab-share-eks/demos/01-docker-build-wordpress/pre-reqs/resize.sh
+        ./mglab-share-eks/demos/01-docker-build-wordpress/pre-reqs/resize.sh
+        export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
+        echo $C9_REGION
+
+    (-) In the C9 Desktop ... Edit prefs to not use automated AWS creds and pass your AWS Keys to the CLI otherwise eksctl will fail
+
+        ----> Cloud9/Preferences
+          ----> AWS Settings
+            ----> Disable AWS managed temporary credentials radial button
+
+        aws configure
+
+(1) Deploy CodeCommit, ECR, & Code Pipeline/Build Cloud Formation
+
+  (-) Create ECR repository to share our image
+
+        cd ~/environment/mglab-share-eks/demos/05-devops-docker-push-ecr
+        aws ecr create-repository --repository-name eks-demo-05-devops-docker-push-wordpress-ecr --region $C9_REGION
+
+(2) Install kubectl & Update our kubeconfig to interact with the cluster created in 04-create-advanced-cluster-eksctl-existing-vpc
+
+  (-) Install kubectl & review your kubeconfig
+
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        curl -LO "https://dl.k8s.io/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
+        echo "$(<kubectl.sha256) kubectl" | sha256sum --check
+        sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+        export AWS_ACCESS_KEY_ID=$(cat ~/.aws/credentials | grep aws_access_key_id | awk '{print$3}')
+        export AWS_SECRET_ACCESS_KEY=$(cat ~/.aws/credentials | grep aws_secret_access_key | awk '{print$3}')
+        aws sts get-caller-identity
+
+        eksctl utils write-kubeconfig --name cluster-eksctl --region $C9_REGION
+        kubectl config view --minify
+        kubectl get all -A
+
+(3) Git clone our Dockerfile to build
+
+  (-)
+        cd ~/environment
+        git clone https://github.com/virtmerlin/mglab-wordpress.git
+
+(4) Build the image on C9 Desktop
+
+  (-)
+        cd ~/environment/mglab-wordpress/Dockerfile
+        docker build -f Dockerfile . -t eks-demo-wordpress:latest -t eks-demo-wordpress:v1.0
+        docker images
+
+(5) Login to ECR private registry
+
+  (-)
+
+        export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
+        aws ecr get-login-password --region $C9_REGION | docker login --username AWS --password-stdin $C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com
+
+(6) Push OCI image to ECR
+
+  (-)
+        docker tag eks-demo-wordpress:latest $C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com/eks-demo-05-devops-docker-push-wordpress-ecr:latest
+        docker push $C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com/eks-demo-05-devops-docker-push-wordpress-ecr:latest
+
+(7) Update Wordpress Image in a deployment
+
+  (-)
+
+       cd ~/environment/mglab-share-eks/demos/05-devops-docker-push-ecr
+       kubectl apply -f ./artifacts/05-DEMO-k8s-all-in-one-fargate.yaml
+       kubectl -n wordpress-fargate set image deployment.v1.apps/wordpress wordpress=$C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com/eks-demo-05-devops-docker-push-wordpress-ecr:latest
+
+       kubectl -n wordpress-fargate get deployment.v1.apps/wordpress -o yaml | grep image
+
+       watch kubectl get pods -o wide -n wordpress-fargate
+
+       kubectl get svc -o wide -n wordpress-fargate
+
+
+(CLEANUP)
+
+  (-) Cleanup Demo Script(s)
+
+        aws ecr delete-repository --repository-name eks-demo-05-devops-docker-push-wordpress-ecr --region $C9_REGION --force
+
+  (-) Cleanup Pre-Reqs Script(s)
+
+        aws cloudformation delete-stack --region $C9_REGION --stack-name eks-demos-c9-dev-desktop
+        aws cloudformation wait stack-delete-complete --region $C9_REGION --stack-name eks-demos-c9-dev-desktop
