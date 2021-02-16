@@ -70,6 +70,17 @@ SO THAT:
 
     (-) get cluster cluster-autoscaler service account & review IRSA Mappings
 
+        kubectl get sa cluster-autoscaler -n kube-system -o yaml
+        kubectl get sa cluster-autoscaler -n kube-system -o yaml | grep "eks.amazonaws.com/role-arn"
+
+        kubectl get deployment cluster-autoscaler -n kube-system -o yaml
+        kubectl get deployment cluster-autoscaler -n kube-system -o yaml | grep "serviceAccount:"
+
+        export OIDC_URL=$(aws eks describe-cluster --name cluster-eksctl --query 'cluster.identity.oidc.issuer' --region $C9_REGION | tr -d '\"')
+        echo $OIDC_URL
+
+        aws iam list-open-id-connect-providers
+
 (2) Create & Scale deployment
 
     (-)
@@ -79,6 +90,9 @@ SO THAT:
         kubectl set resources deploy autoscaler-demo --requests=cpu=200m,memory=200Mi
 
         kubectl scale deployment autoscaler-demo --replicas=50
+
+        kubectl logs deployment.apps/cluster-autoscaler -n kube-system -f
+
         kubectl get deployment autoscaler-demo --watch
         kubectl delete deployment autoscaler-demo
         kubectl get nodes -o wide
