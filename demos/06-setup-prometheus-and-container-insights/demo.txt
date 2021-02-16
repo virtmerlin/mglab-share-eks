@@ -76,13 +76,16 @@ SO THAT:
 
     (-) Install kuberntes metrics-server
 
+        kubectl get --raw /metrics
+
         kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.3.6/components.yaml
-        kubectl get nodes
+
+        sudo yum install jq -y
+        kubectl get --raw /apis/metrics.k8s.io/v1beta1/nodes
+        kubectl get apiservice v1beta1.metrics.k8s.io -o json | jq '.status'
+
         kubectl top nodes
         kubectl top pods -A
-        kubectl get apiservice v1beta1.metrics.k8s.io -o json | jq '.status'
-        kubectl get --raw /apis/metrics.k8s.io/v1beta1/nodes
-
         kubectl get pods -A | grep metrics-server
 
     (-) Now we can feed base pod/node metrics to the HPA, VPA, & kubectl
@@ -120,7 +123,7 @@ SO THAT:
           fields @timestamp, kubernetes.pod_name, log
           | filter kubernetes.namespace_name="amazon-cloudwatch"
           | sort @timestamp desc
-            
+
 (3) Enable Control Plane logging to CloudWatch
 
     (-) Using eksctl to enable all logging
@@ -140,31 +143,22 @@ SO THAT:
 
         kubectl apply -f ./artifacts/06-DEMO-prometheus-eks.yaml
 
-        kubcetl get all -n amazon-cloudwatch | grep prometheus
+        kubectl get all -n amazon-cloudwatch
         kubectl logs deployment.apps/cwagent-prometheus -n amazon-cloudwatch -f
 
     (-) Verify Control plane Metrics
 
         ---> Open Console to https://console.aws.amazon.com/cloudwatch/home?region=us-west-1#metricsV2:graph
         ---> Click on the Source tab and enter data below then 'update'
-            {
-                "view": "timeSeries",
-                "stacked": false,
-                "region": "us-west-1",
-                "stat": "Average",
-                "period": 5,
-                "metrics": [
-                    [ "ContainerInsights/Prometheus", "etcd_object_counts", "resource", "daemonsets.apps", "ClusterName", "cluster-eksctl" ],
-                    [ "...", "endpointslices.discovery.k8s.io", ".", "." ],
-                    [ "...", "replicasets.apps", ".", "." ],
-                    [ "...", "secrets", ".", "." ],
-                    [ "...", "endpoints", ".", "." ],
-                    [ "...", "services", ".", "." ],
-                    [ "...", "serviceaccounts", ".", "." ],
-                    [ "...", "configmaps", ".", "." ],
-                    [ "...", "deployments.apps", ".", "." ]
-                ]
-            }
+              {
+                  "view": "timeSeries",
+                  "stacked": false,
+                  "metrics": [
+                      [ "ContainerInsights/Prometheus", "apiserver_request_total", "code", "200", "Service", "kubernetes", "ClusterName", "cluster-eksctl" ],
+                      [ "...", "201", ".", ".", ".", "." ]
+                  ],
+                  "region": "us-west-1"
+              }
 
     (-) Now we can collect Control Plane Prometheus format metrics in Cloud Watch
 
@@ -193,10 +187,35 @@ SO THAT:
 
         ---> Open elb address
 
+        ---> Sample Graph PromQL(s)
+
+            ---> {namespace="wordpress-fargate"}
+            ---> count(up{job="kubernetes-apiservers"}) <---- 2 Nodes :)
+
+(OPTIONAL) Review Fargate Pod Logging
+
+    (-) See logging config for fargate pods
+
+        export FARGATE_PROFILE_IAM_ROLE=$(eksctl get fargateprofile --cluster cluster-eksctl | grep fp-wordpress | awk '{print$4}' | awk -F '/' '{print$2}')
+        echo $FARGATE_PROFILE_IAM_ROLE
+
+        aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy --role-name $FARGATE_PROFILE_IAM_ROLE
+
+        kubectl apply -f ../04-create-advanced-cluster-eksctl-existing-vpc/artifacts/04-DEMO-k8s-all-in-one-fargate.yaml
+        kubectl rollout restart deployment wordpress -n wordpress-fargate
+
+        kubectl get cm -n aws-observability
+        kubectl get cm -n aws-observability -o yaml
+
+        kubectl get pods -o wide -n wordpress-fargate
+
+        ---> In CloudWatch Console CloudWatch [CloudWatch Logs]->[Log groups]->[fluent-bit-cloudwatch]
 
 (CLEANUP)
 
   (-) Cleanup Demo Script(s)
+
+      aws iam detach-role-policy --policy-arn arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy --role-name $FARGATE_PROFILE_IAM_ROLE
 
       helm delete prometheus prometheus-community/prometheus --namespace prometheus
       curl https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/quickstart/cwagent-fluent-bit-quickstart.yaml | sed 's/{{cluster_name}}/'cluster-eksctl'/;s/{{region_name}}/'${C9_REGION}'/;s/{{http_server_toggle}}/"'${FluentBitHttpServer}'"/;s/{{http_server_port}}/"'${FluentBitHttpPort}'"/;s/{{read_from_head}}/"'${FluentBitReadFromHead}'"/;s/{{read_from_tail}}/"'${FluentBitReadFromTail}'"/' | kubectl delete -f -
