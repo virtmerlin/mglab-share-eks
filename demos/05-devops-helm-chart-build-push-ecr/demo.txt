@@ -125,11 +125,27 @@ SO THAT:
         helm show chart demo-nginx-helm
         helm show values demo-nginx-helm
 
+  (-) Add public repos & Show External Chart Values
+
+        helm repo add bitnami https://charts.bitnami.com/bitnami
+        helm repo add eks https://aws.github.io/eks-charts
+
+        helm repo update
+
+        helm search repo eks
+        helm search repo eks --version ^1.0.0
+
+        helm show values bitnami/wordpress
+        helm pull bitnami/wordpress
+
   (-) Install chart with default values
 
         helm install my-nginx demo-nginx-helm
         helm status my-nginx -n default
         helm ls -A
+
+        kubectl get deploy -n default
+        kubectl edit deploy -n default
 
         helm get values my-nginx -n default
         helm get values my-nginx -n default --all
@@ -145,6 +161,8 @@ SO THAT:
         kubectl get deploy my-nginx-demo-nginx-helm -n default
 
   (-) Rollback revision
+
+        helm history my-nginx -n default
 
         helm rollback my-nginx 1 -n default
         kubectl get deploy my-nginx-demo-nginx-helm -n default -o yaml | grep image
