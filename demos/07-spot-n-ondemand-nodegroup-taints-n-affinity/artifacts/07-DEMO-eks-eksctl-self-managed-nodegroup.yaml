@@ -31,8 +31,8 @@ nodeGroups:
     ssh:
         allow: true
         publicKeyName: cluster_eksctl_KeyPair
-        sourceSecurityGroupIds:
-          - sg-02009634a8b104cd2
+        #sourceSecurityGroupIds:
+        #  - sg-[[C9_DESKTOP_SG]]
     tags:
       k8s.io/cluster-autoscaler/node-template/label/intent: demo
       k8s.io/cluster-autoscaler/node-template/taint/spotInstance: "true:PreferNoSchedule"
