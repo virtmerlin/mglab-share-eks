@@ -1,0 +1,40 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: cluster-eksctl
+  region: [[AWSREGION]]
+
+nodeGroups:
+  - name: selfmanaged-ng-02
+    instanceType: mixed
+    minSize: 2
+    maxSize: 5
+    desiredCapacity: 2
+    instancesDistribution:
+        instanceTypes: ["m5.2xlarge", "m5d.2xlarge", "m4.2xlarge","t3.2xlarge","t3a.2xlarge","m5a.2xlarge","t2.2xlarge"]
+        onDemandBaseCapacity: 1
+        onDemandPercentageAboveBaseCapacity: 0
+        spotAllocationStrategy: capacity-optimized
+    amiFamily: AmazonLinux2
+    privateNetworking: true
+    iam:
+       attachPolicyARNs:
+          - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+          - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+          - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+          - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+          - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+       withAddonPolicies:
+          cloudWatch: true
+          albIngress: true
+    ssh:
+        allow: true
+        publicKeyName: cluster_eksctl_KeyPair
+        sourceSecurityGroupIds:
+          - sg-02009634a8b104cd2
+    tags:
+      k8s.io/cluster-autoscaler/node-template/label/intent: demo
+      k8s.io/cluster-autoscaler/node-template/taint/spotInstance: "true:PreferNoSchedule"
+    preBootstrapCommands:
+      - export AWS_DEFAULT_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}') && export ilc=$(aws ec2 describe-instances --instance-ids  $(curl -s http://169.254.169.254/latest/meta-data/instance-id)  --query 'Reservations[0].Instances[0].InstanceLifecycle' --output text) &&  if [ "$ilc" == "spot" ]; then sed -i '/^NODE_LABELS=${NODE_LABELS}.*/a NODE_TAINTS=spotInstance=true\:PreferNoSchedule' /var/lib/cloud/scripts/eksctl/bootstrap.al2.sh; fi

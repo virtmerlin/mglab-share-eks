@@ -1,0 +1,135 @@
+=====================================================================
+GIVEN:
+  - A developer desktop with docker & git installed (AWS Cloud9)
+  - An EKS cluster named 'cluster-eksctl' has been created via 04-create-advanced-cluster-eksctl-existing-vpc
+WHEN:
+  - I create a self-managed nodegroup with eksctl
+  - I install the node termination handler
+THEN:
+  - I will get a nodegroup with Spot & OnDemand Nodes
+  - I will get a nodegroup that will auto taint Spot nodes
+SO THAT:
+  - I can deploy a new workload that will use tolerations and affinity to target the spot nodes
+
+=====================================================================
+(0) Requires
+
+    04-create-advanced-cluster-eksctl-existing-vpc
+
+(0) PreReqs
+
+    (-) Set the AWS Region variable for where you want to run these demos
+
+        export C9_REGION=[[YOUR_REGION]]
+
+    (-) Create/Update an EKS style VPC from your Desktop using AWS Cloudformation
+
+        aws cloudformation deploy --region $C9_REGION --template-file ../01-docker-build-wordpress/pre-reqs/cfn-amazon-eks-vpc-private-subnets.cfn \
+          --stack-name eks-demos-networking
+
+    (-) Create/Update C9 Instance within the VPC. You will run all subsequent demo steps from a console on the C9 Instance.
+
+        aws cloudformation deploy --region $C9_REGION --template-file ../01-docker-build-wordpress/pre-reqs/cfn-c9-desktop.cfn \
+          --stack-name eks-demos-c9-dev-desktop
+
+    (-) Navigate to C9 Instance 'terminal' window of the IDE & resize the disk
+
+        https://console.aws.amazon.com/cloud9/home?
+        ---> Open IDE to exec all remaining demo commands within the C9 desktop
+
+        cd ~/environment
+        if [ ! -d mglab-share-eks ]; then git clone https://github.com/virtmerlin/mglab-share-eks.git; fi
+        chmod 755 ./mglab-share-eks/demos/01-docker-build-wordpress/pre-reqs/resize.sh
+        ./mglab-share-eks/demos/01-docker-build-wordpress/pre-reqs/resize.sh
+        export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
+        echo $C9_REGION
+
+    (-) In the C9 Desktop ... Edit prefs to not use automated AWS creds and pass your AWS Keys to the CLI otherwise eksctl will fail
+
+        ----> Cloud9/Preferences
+          ----> AWS Settings
+            ----> Disable AWS managed temporary credentials radial button
+
+        aws configure
+
+(1) Setup eksctl & kubectl
+
+    (-) Install kubectl & set context
+
+        cd ~/environment/mglab-share-eks/demos/07-spot-n-ondemand-nodegroup-taints-n-affinity
+        export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
+        export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
+
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        curl -LO "https://dl.k8s.io/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
+        echo "$(<kubectl.sha256) kubectl" | sha256sum --check
+        sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+        export AWS_ACCESS_KEY_ID=$(cat ~/.aws/credentials | grep aws_access_key_id | awk '{print$3}')
+        export AWS_SECRET_ACCESS_KEY=$(cat ~/.aws/credentials | grep aws_secret_access_key | awk '{print$3}')
+        aws sts get-caller-identity
+
+        eksctl utils write-kubeconfig --name cluster-eksctl --region $C9_REGION
+        kubectl config view --minify
+        kubectl get all -A
+
+    (-) Install eksctl
+
+        curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+        sudo mv /tmp/eksctl /usr/local/bin
+        eksctl version
+
+(2) Create self managed mixed instance & spot+OD nodegroup w eksctl
+
+    (-) Create Nodegroup
+
+        sed  -i "s/\[\[AWSREGION\]\]/$C9_REGION/g" ./artifacts/07-DEMO-eks-eksctl-self-managed-nodegroup.yaml
+
+        eksctl create nodegroup -f ./artifacts/07-DEMO-eks-eksctl-self-managed-nodegroup.yaml
+
+(3) Deploy workload with tolerations & affinity
+
+    (-) Apply nginx yaml with tolerations & affinity, this should have the pod run on a spot tainted node
+
+        kubectl get nodes --label-columns node-lifecycle,eks.amazonaws.com/capacityType,alpha.eksctl.io/nodegroup-name
+        kubectl get nodes -o json | jq --raw-output '.items[] | .metadata.name,.spec.taints'
+
+        kubectl apply -f ./artifacts/07-DEMO-eks-spot-toleration-nginx.yaml
+
+        kubectl get pod spot-nginx -o=custom-columns=NAME:.metadata.name,STATUS:.status.phase,NODE:.spec.nodeName -n default
+        kubectl get nodes --label-columns eks.amazonaws.com/nodegroup,eks.amazonaws.com/capacityType,node-lifecycle
+
+(4) Install the Node Termination Handler
+
+    (-) Install helm cli
+
+        curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get-helm-3 > get_helm.sh
+        chmod 700 get_helm.sh
+        ./get_helm.sh
+
+    (-) Install NTH, just on Linux based Spot Nodes
+
+        helm repo add eks https://aws.github.io/eks-charts
+
+        helm upgrade --install aws-node-termination-handler \
+          --namespace kube-system \
+          --set enableSpotInterruptionDraining="true" \
+          --set enableRebalanceMonitoring="true" \
+          --set enableScheduledEventDraining="false" \
+          --set linuxNodeSelector.'node-lifecycle'=spot \
+          eks/aws-node-termination-handler
+
+        kubectl get ds -n kube-system
+
+(CLEANUP)
+
+  (-) Cleanup Demo Script(s)
+
+
+        eksctl delete nodegroup -f ./artifacts/07-DEMO-eks-eksctl-self-managed-nodegroup.yaml --approve
+
+
+  (-) Cleanup Pre-Reqs Script(s)
+
+        aws cloudformation delete-stack --region $C9_REGION --stack-name eks-demos-c9-dev-desktop
+        aws cloudformation wait stack-delete-complete --region $C9_REGION --stack-name eks-demos-c9-dev-desktop

@@ -49,4 +49,5 @@ Demo Name     | Demo Link     | Last Automated Test Timestamp
 05-devops-helm-chart-build-push-ecr     | ![link](demos/05-devops-helm-chart-build-push-ecr/demo.txt)   | Not Yet Automated
 05-devops-simple-code-pipeline     | ![link](demos/05-devops-simple-code-pipeline/demo.txt)   | Not Yet Automated
 06-setup-prometheus-and-container-insights     | ![link](demos/06-setup-prometheus-and-container-insights/demo.txt)   | Not Yet Automated  
-06-cluster-autoscaler     | ![link](demos/06-cluster-autoscaler/demo.txt)   | Not Yet Automated 
+06-cluster-autoscaler     | ![link](demos/06-cluster-autoscaler/demo.txt)   | Not Yet Automated
+07-spot-n-ondemand-nodegroup-taints-n-affinity | ![link](demos/07-spot-n-ondemand-nodegroup-taints-n-affinity/demo.txt)   | Not Yet Automated
