@@ -3,13 +3,13 @@ GIVEN:
   - A developer desktop with docker & git installed (AWS Cloud9)
   - A multi-tier web workload (Wordpress) already packaged as docker images
 WHEN:
-  - Install kubectl
-  - Start a minikube k8s cluster on the C9 Instance
-  - Use the kubectl cli to 'apply' the wordpress workload locally
+  - I install kubectl
+  - I start a minikube k8s cluster running on the C9 instance
+  - I use the kubectl cli to 'apply' the wordpress workload to minikube
 THEN:
   - I will get wordpress running locally on a local deployment of kubernetes
 SO THAT:
-  - I can see a portable way to deploy a k8s workload (same on dev desktop as cloud)
+  - I can see a portable way to deploy a k8s workload (same process on dev desktop as in cloud)
   - I can debug workload (shell/logs/networking)
   - I can inspect workloads
   - I can learn core k8s resource types
@@ -17,137 +17,177 @@ SO THAT:
 =====================================================================
 (0) PreReqs
 
-    (-) Set the AWS Region variable for where you want to run these demos
+    (-) From your desktop mac/pc, set the AWS Region variable for where you want to run these demos (Default to us-west-1 if no value entered):
 
-        export C9_REGION=[[YOUR_REGION]]
+        export C9_REGION=[[YOUR_REGION]] && if [[ $C9_REGION == '[[YOUR_REGION]]' ]];then export C9_REGION='us-west-1'; fi
 
-    (-) Create/Update an EKS style VPC from your Desktop using AWS Cloudformation
+    (-) From your desktop mac/pc, create/update an EKS style VPC using AWS Cloudformation:
 
         aws cloudformation deploy --region $C9_REGION --template-file ../01-docker-build-wordpress/pre-reqs/cfn-amazon-eks-vpc-private-subnets.cfn \
           --stack-name eks-demos-networking
 
-    (-) Create/Update C9 Instance within the VPC. You will run all subsequent demo steps from a console on the C9 Instance.
+    (-) From your desktop mac/pc, create/update a Cloud9 (C9) instance within the new VPC. You will run all subsequent demo steps from a console on this C9 instance:
 
         aws cloudformation deploy --region $C9_REGION --template-file ../01-docker-build-wordpress/pre-reqs/cfn-c9-desktop.cfn \
           --stack-name eks-demos-c9-dev-desktop
 
-    (-) Navigate to C9 Instance 'terminal' window of the IDE & resize the disk
+    (-) Within the AWS Console of your account, navigate to the C9 instance's 'terminal' window of the IDE & resize the disk.  Also pull down this repo to the C9 Instance:
 
-        https://console.aws.amazon.com/cloud9/home?
-        ---> Open IDE to exec all remaining demo commands within the C9 desktop
+        ---> https://console.aws.amazon.com/cloud9/home?
+        ---> Open IDE to exec all remaining demo commands from within the new C9 instance's IDE terminal
 
         cd ~/environment
         if [ ! -d mglab-share-eks ]; then git clone https://github.com/virtmerlin/mglab-share-eks.git; fi
         chmod 755 ./mglab-share-eks/demos/01-docker-build-wordpress/pre-reqs/resize.sh
         ./mglab-share-eks/demos/01-docker-build-wordpress/pre-reqs/resize.sh
+
+    (-) Set Required Key variables for Bash commands to refer to:
+
         export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
         echo $C9_REGION
 
+        export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
+        echo $C9_AWS_ACCT
 
+(1) Deploy a Kubernetes cluster (minikube) on Cloud9 instance.
 
-(1) Deploy a Kubernetes cluster (minikube) on Cloud9 Desktop
-
-    (-) Install minikube CLI & launch cluster
+    (-) Install minikube CLI & launch K8s cluster:
 
         cd ~/environment/mglab-share-eks/demos/02-kubernetes-run-wordpress-minikube/
         curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
         sudo install minikube-linux-amd64 /usr/local/bin/minikube
         minikube start
 
-    (-) Install kubectl CLI
+    (-) Install kubectl CLI:
 
         curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
         curl -LO "https://dl.k8s.io/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
         echo "$(<kubectl.sha256) kubectl" | sha256sum --check
         sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
-(2) Show K8s resource types available in local deploy
+(2) Validate the minikube k8s cluster.
+
+    (-) Create/Update kubeconfig context for minikube:
 
         minikube update-context
         kubectl config get-contexts
         kubectl config view --minify
+
+    (-) Show K8s client & server versions as well as K8s resource types available in K8s as installed by minikube:
+
         kubectl version
         kubectl api-resources
 
-(3) Create config map & secret
+(3) Deploy Wordpress into minikube.
+
+    (-) Create K8s namespace(ns):
 
         kubectl create ns wordpress
+
+    (-) Create K8s configmap(cm) to stash the wordpress database name variable:
+
         kubectl create configmap wordpress-config -n wordpress --from-literal=database=wordpress
         kubectl get cm wordpress-config -n wordpress
         kubectl describe cm wordpress-config -n wordpress
 
+    (-) Create K8s secret to stash the wordpress database credential variables:
+
+        kubectl explain secret
         kubectl create secret generic wordpress-db-secret -n wordpress --from-literal=username=myuser --from-literal=password='mypasswd'
         kubectl get secret wordpress-db-secret -n wordpress
         kubectl get secret wordpress-db-secret -n wordpress -o jsonpath='{.data}'
         kubectl get secret wordpress-db-secret -n wordpress -o jsonpath='{.data.password}' | base64 --decode
         kubectl get secret wordpress-db-secret -n wordpress -o jsonpath='{.data.username}' | base64 --decode
 
-(4) Create mysql [backend] ClusterIP Service
+    (-) Create Mysql [backend] as a K8s ClusterIP Service type:
 
         kubectl apply -f ./artifacts/02-DEMO-k8s-mysql.yaml -n wordpress
 
-(5) Create wordpress [frontend]  Nodeport Service
+    (-) Create Wordpress [frontend] as a K8s Nodeport Service type:
 
         kubectl apply -f ./artifacts/02-DEMO-k8s-wordpress.yaml -n wordpress
 
-(6) Expose wordpress [frontend]
+(4) Expose Wordpress [frontend] runnign in minikube using the kubectl cli.
+
+    (-) Map Cloud9 Instance port to the Wordpress Nodeport Service running in minikube:
 
         kubectl get pods -n wordpress --watch
         kubectl port-forward service/wordpress -n wordpress  9000:80
 
-        ---> Second terminal window
-        kubectl logs deployment.apps/wordpress -n wordpress -f
+        ---> Open a second IDE terminal window on the C9 instance:
+
+        kubectl logs deployment.apps/wordpress -n wordpress
         curl http://localhost:9000/wp-admin/install.php
 
-(8) See how a K8s service 'name' is resolved
+(5) 'EXEC' into the Wordpress [frontend] to see how a K8s service 'name' is resolved by CoreDNS.
+
+    (-) Open BASH shell into the Wordpress [frontend] pod:
 
         kubectl exec -n wordpress --stdin --tty $(kubectl get pods -n wordpress | grep -v mysql | grep -v NAME |  awk '{print$1}') -- /bin/bash
-          cat /etc/resolv.conf
-          apt-get update
-          apt-get install iputils-ping -y
-          ping wordpress-mysql <<<--- pings will fail , see ip matches kubectl get svc ClusterIP
-          exit
+          ---> cat /etc/resolv.conf
+          ---> apt-get update
+          ---> apt-get install iputils-ping -y
+          ---> ping wordpress-mysql <<<--- pings will fail , see that the resolved ip matches `kubectl get svc` ClusterIP
+          ---> exit
         kubectl get svc -o wide -A | grep -E 'wordpress-mysql|kube-dns'
+        kubectl get svc -o wide -A
 
-(9) (Optional) Stateful Sets & PV Data.  See how K8s will dynamically create & map PVs to replicas of a sts
+(6) (Optional) Stateful Sets & PV Data.  See how K8s will dynamically create & map persistentvolumes(pv) to replicas of a statefulsets(sts).
+
+    (-) Show existing persistentvolumes(pv) & persistentvolumeclaims(pvc):
 
         cd ~/environment/mglab-share-eks/demos/02-kubernetes-run-wordpress-minikube/
         kubectl get pv
         kubectl get pvc -n wordpress
 
+    (-) Create statefulsets(sts):
+
         kubectl apply -f ./artifacts/02-DEMO-k8s-stateful-set.yaml
         kubectl get sts web --watch
+
+    (-) Show new persistentvolumes(pv) & persistentvolumeclaims(pvc) matched to replicas:
 
         kubectl get pv
         kubectl get pvc -A
 
-(10) (Optional) K8s Deployment Rollout & Rollback.  See the Deployment manage multiple Replicasets updating image & rolling back
+(7) (Optional) K8s Deployment Rollout & Rollback.  See the Deployment manage multiple Replicasets updating image & rolling back.
+
+    (-) Update Wordpress deployments to be declared by single yaml:
 
         kubectl apply -f ./artifacts/02-DEMO-k8s-all-in-one.yaml
+        kubectl get deployment.v1.apps/wordpress -n wordpress -o yaml | grep image:
         kubectl rollout status deployment/wordpress -n wordpress
         kubectl get deploy wordpress -n wordpress -o wide
         kubectl get rs -n wordpress
 
+    (-) Update Wordpress frontend deployment to use wordpress image from dockerhub:
+
         kubectl -n wordpress --record deployment.apps/wordpress set image wordpress=wordpress
+        kubectl get deployment.v1.apps/wordpress -n wordpress -o yaml | grep image:
         kubectl rollout status deployment/wordpress -n wordpress
         kubectl get rs -n wordpress
 
+    (-) Rollback to original deployment:
 
         kubectl -n wordpress rollout history deployment.v1.apps/wordpress
         kubectl -n wordpress rollout undo deployment.v1.apps/wordpress --to-revision=1
         kubectl get deployment.v1.apps/wordpress -n wordpress -o yaml | grep image:
 
+(8) Minikube stop.
+
+    (-) Minikube stop:
+
         minikube stop
 
 (CLEANUP)
 
-  (-) Cleanup Demo Script(s)
+    (-) Cleanup Demo Script(s)
 
-    aws ecr delete-repository --repository-name eks-demo-wordpress --region $C9_REGION --force
+        aws ecr delete-repository --repository-name eks-demo-wordpress --region $C9_REGION --force
 
+    (-) Cleanup Pre-Reqs Script(s)
 
-  (-) Cleanup Pre-Reqs Script(s)
-
-    aws cloudformation delete-stack --region $C9_REGION --stack-name eks-demos-c9-dev-desktop
-    aws cloudformation wait stack-delete-complete --region $C9_REGION --stack-name eks-demos-c9-dev-desktop
-    aws cloudformation delete-stack --region $C9_REGION --stack-name eks-demos-networking
+        aws cloudformation delete-stack --region $C9_REGION --stack-name eks-demos-c9-dev-desktop
+        aws cloudformation wait stack-delete-complete --region $C9_REGION --stack-name eks-demos-c9-dev-desktop
+        aws cloudformation delete-stack --region $C9_REGION --stack-name eks-demos-networking
+        aws cloudformation wait stack-delete-complete --region $C9_REGION --stack-name eks-demos-networking
