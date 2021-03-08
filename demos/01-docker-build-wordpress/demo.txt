@@ -4,46 +4,51 @@ GIVEN:
   - A multi-tier web workload to build (Wordpress)
   - A docker image inspection tool (dive)
 WHEN:
-  - I pull the Dockerfile for Wordpress & build it
+  - I pull the Dockerhub 'Dockerfile' for Wordpress & build it
 THEN:
-  - I will get a docker image built locally
+  - I will get a docker image for the Wordpress PHP/Apache front end built
 SO THAT:
   - I can run it locally
   - I can debug it (shell/logs/networking)
-  - I can inspect it
+  - I can inspect it with dive
 =====================================================================
 (0) PreReqs
 
-    (-) Set the AWS Region variable for where you want to run these demos
+    (-) From your desktop mac/pc, set the AWS Region variable for where you want to run these demos (Default to us-west-1 if no value entered):
 
-        export C9_REGION=[[YOUR_REGION]]
+        export C9_REGION=[[YOUR_REGION]] && if [[ $C9_REGION == '[[YOUR_REGION]]' ]];then export C9_REGION='us-west-1'; fi
 
-    (-) Create/Update an EKS style VPC from your Desktop using AWS Cloudformation
+    (-) From your desktop mac/pc, create/update an EKS style VPC using AWS Cloudformation:
 
         aws cloudformation deploy --region $C9_REGION --template-file ./pre-reqs/cfn-amazon-eks-vpc-private-subnets.cfn \
           --stack-name eks-demos-networking
 
-    (-) Create/Update C9 Instance within the VPC. You will run all subsequent demo steps from a console on the C9 Instance.
+    (-) From your desktop mac/pc, create/update a Cloud9 (C9) instance within the new VPC. You will run all subsequent demo steps from a console on this C9 instance:
 
         aws cloudformation deploy --region $C9_REGION --template-file ./pre-reqs/cfn-c9-desktop.cfn \
           --stack-name eks-demos-c9-dev-desktop
 
-    (-) Navigate to C9 Instance 'terminal' window of the IDE & resize the disk
+    (-) Within the AWS Console of your account, navigate to the C9 instance's 'terminal' window of the IDE & resize the disk.  Also pull down this repo to the C9 Instance:
 
-        https://console.aws.amazon.com/cloud9/home?
-        ---> Open IDE to exec all remaining demo commands within the C9 desktop
+        ---> https://console.aws.amazon.com/cloud9/home?
+        ---> Open IDE to exec all remaining demo commands from within the new C9 instance's IDE terminal
 
         cd ~/environment
         if [ ! -d mglab-share-eks ]; then git clone https://github.com/virtmerlin/mglab-share-eks.git; fi
         chmod 755 ./mglab-share-eks/demos/01-docker-build-wordpress/pre-reqs/resize.sh
         ./mglab-share-eks/demos/01-docker-build-wordpress/pre-reqs/resize.sh
+
+    (-) Set Required Key variables for Bash commands to refer to:
+
         export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
         echo $C9_REGION
 
+        export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
+        echo $C9_AWS_ACCT
 
-(1) Create Docker wordpress OCI image & inspect it with dive (! If dockerhub limits your pull during build, please login to dockerhub)
+(1) Create Docker wordpress OCI image & inspect it with dive (! If dockerhub limits your pull during build, please login to dockerhub).
 
-    (-)
+    (-) Create & inspect thew Wordpress PHP/Apache front end image you just built:
 
         cd ~/environment
         git clone https://github.com/docker-library/wordpress.git
@@ -52,25 +57,25 @@ SO THAT:
         docker images
         docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock wagoodman/dive:latest eks-demo-wordpress:v1.0
 
-(2) Run wordpress front-end & mysql back-end with Docker
+(2) Run wordpress front-end & mysql back-end with Docker.
 
-    (-) Start Mysql on Cloud9 Desktop
+    (-) Pull down & start Wordpress Mysql backend OCI image on Cloud9 instance:
 
         mkdir -p ~/docker-data
         docker run --name crazy-mysql -p 3306:3306 -v ~/docker-data:/var/lib/mysql -e MYSQL_RANDOM_ROOT_PASSWORD=yes -e MYSQL_DATABASE=wordpress -e MYSQL_PASSWORD=mypasswd -e MYSQL_USER=myuser -d mysql:5.6
 
-    (-) Start Wordpress on Cloud9 Desktop + see logs + exec into pod
+    (-) Start Wordpress on Cloud9 instance + see logs + exec into pod:
 
         docker run --name crazy-wordpress -p 8181:80 -e WORDPRESS_DB_HOST=$(ifconfig eth0 | grep inet | awk -F ':' '{print$2}' | awk '{print$1}' | head -n 1) \
           -e WORDPRESS_DB_USER=myuser -e WORDPRESS_DB_PASSWORD=mypasswd \
           -e WP_HOME='http://localhost:8181' -e WP_SITEURL='http://localhost:8181' \
           -d eks-demo-wordpress:latest
 
-        docker logs crazy-wordpress -f
+        docker logs crazy-wordpress
 
         docker exec -it crazy-wordpress /bin/bash
-          ps -ef
-          exit
+          ---> ps -ef
+          ---> exit
 
         curl http://localhost:8181/wp-admin/install.php
 
@@ -78,24 +83,30 @@ SO THAT:
         docker stop crazy-wordpress
         docker stop crazy-mysql
 
-(3) Tag & Push image to an ECR registry
+(3) Tag & Push image to an ECR registry.
+
+    (-) Create/Update ECR repository:
 
         aws ecr describe-repositories --repository-names eks-demo-wordpress --region $C9_REGION || aws ecr create-repository --repository-name eks-demo-wordpress --region $C9_REGION
-        export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
+
+    (-) Authenticate to ECR:
 
         aws ecr get-login-password --region $C9_REGION | docker login --username AWS --password-stdin $C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com
+
+    (-) Tag & push the Wordpress front end OCI image to ECR:
 
         docker tag eks-demo-wordpress $C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com/eks-demo-wordpress
         docker images
         docker push $C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com/eks-demo-wordpress
 
-        https://console.aws.amazon.com/ecr/repositories
+        ---> https://console.aws.amazon.com/ecr/repositories
         ---> Open ECR Registry in your region
 
 (CLEANUP)
 
-  (-) Cleanup Pre-Reqs Script(s)
+    (-) Cleanup Pre-Reqs Script(s)
 
-    aws cloudformation delete-stack --region $C9_REGION --stack-name eks-demos-c9-dev-desktop
-    aws cloudformation wait stack-delete-complete --region $C9_REGION --stack-name eks-demos-c9-dev-desktop
-    aws cloudformation delete-stack --region $C9_REGION --stack-name eks-demos-networking
+        aws cloudformation delete-stack --region $C9_REGION --stack-name eks-demos-c9-dev-desktop
+        aws cloudformation wait stack-delete-complete --region $C9_REGION --stack-name eks-demos-c9-dev-desktop
+        aws cloudformation delete-stack --region $C9_REGION --stack-name eks-demos-networking
+        aws cloudformation wait stack-delete-complete --region $C9_REGION --stack-name eks-demos-networking
