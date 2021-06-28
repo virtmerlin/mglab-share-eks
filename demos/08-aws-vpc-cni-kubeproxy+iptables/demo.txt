@@ -1,0 +1,153 @@
+=====================================================================
+GIVEN:
+  - A developer desktop with docker & git installed (AWS Cloud9)
+  - An EKS cluster named 'cluster-eksctl' has been created via 04-create-advanced-cluster-eksctl-existing-vpc
+WHEN:
+  - I deploy a simple workload
+THEN:
+  - I will ssh onto a node
+SO THAT:
+  - I can see how the kubeproxy uses iptables to load distribute to pods
+
+=====================================================================
+(0) Requires
+
+    04-create-advanced-cluster-eksctl-existing-vpc
+
+(0) PreReqs
+
+    (-) In the C9 instance IDE ... Set Required Key variables for Bash commands to refer to:
+
+        export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
+        echo $C9_REGION
+
+        export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
+        echo $C9_AWS_ACCT
+
+    (-) !!! In the C9 instance IDE ... Edit prefs to not use automated AWS credentials and pass your AWS Keys to the CLI otherwise eksctl & kubectl commands WILL FAIL !!!
+
+        ---> Cloud9/Preferences
+          ---> AWS Settings
+            ---> Disable AWS managed temporary credentials radial button
+
+        aws configure <--- Add your AWS account user Keys
+
+        export AWS_ACCESS_KEY_ID=$(cat ~/.aws/credentials | grep aws_access_key_id | awk '{print$3}')
+        export AWS_SECRET_ACCESS_KEY=$(cat ~/.aws/credentials | grep aws_secret_access_key | awk '{print$3}')
+        aws sts get-caller-identity
+
+(1) Setup eksctl & kubectl.
+
+    (-) Install kubectl & set context:
+
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        curl -LO "https://dl.k8s.io/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
+        echo "$(<kubectl.sha256) kubectl" | sha256sum --check
+        sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+        eksctl utils write-kubeconfig --cluster cluster-eksctl --region $C9_REGION --authenticator-role-arn arn:aws:iam::${C9_AWS_ACCT}:role/cluster-eksctl-creator-role
+        kubectl config view --minify
+        kubectl get all -A
+
+    (-) Install eksctl:
+
+        curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+        sudo mv /tmp/eksctl /usr/local/bin
+        eksctl version
+
+(2) Deploy a simple workload.
+
+    (-) Deploy 1 x replica of game-2048:
+
+        cd ~/environment/mglab-share-eks/demos/08-aws-vpc-cni-kubeproxy+iptables/
+        kubectl apply -f ./artifacts/08-DEMO-ingress-app.yaml
+
+        kubectl get pod -o wide -n game-2048
+
+    (-) Get Svc ClusterIP for the game2048 Nodeport service:
+
+        kubectl get svc -n game-2048
+
+    (-) Get the 1 x Replica Pod IP:
+
+        export POD_IP=$(kubectl get pod -o wide -n game-2048 | grep deployment-2048 | awk '{print$6}')
+        echo $POD_IP
+
+(3) SSH into the node to explore kube-proxy & iptables.
+
+    (-) Get host private ip that game-2048 is running on:
+
+        export EC2_NODE=$(kubectl get pod -o wide -n game-2048 | grep deployment-2048 | awk '{print$7}' | tr '-' '\.' | awk -F '.' '{print$2"."$3"."$4"."$5}')
+        echo $EC2_NODE
+
+    (-) Allow SSH from the Cloud9 desktop to the SG for the nodegroups
+
+        export C9_IP=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq .privateIp | tr -d '"')
+        echo $C9_IP
+
+        export EC2_SGS=$(aws ec2 describe-network-interfaces --filters Name=addresses.private-ip-address,Values=${EC2_NODE} --query NetworkInterfaces[].Groups[].GroupId)
+        echo $EC2_SGS
+
+        echo $EC2_SGS | jq -c '.[]' | while read i; do
+          echo "Setting Rule to allow SSH in for nodes in $i from C9 instance"
+          SG=$(echo $i | tr -d '"')
+          aws ec2 authorize-security-group-ingress --group-id $SG --protocol tcp --port 22 --cidr ${C9_IP}/32
+        done
+
+    (-) SSH into instance, all remaining cmds in this section occur on the node:
+
+        chmod 500 ../04-create-advanced-cluster-eksctl-existing-vpc/cluster_eksctl_key.pem
+        ssh -i ../04-create-advanced-cluster-eksctl-existing-vpc/cluster_eksctl_key.pem ec2-user@${EC2_NODE}
+
+        (-) List all iptables pre-routing tables, notice the table: KUBE-SERVICES:
+
+            sudo iptables -t nat -L PREROUTING | column -t
+            sudo iptables -t nat -L KUBE-SERVICES -n  | column -t
+
+        (-) Find the target iptable for game-2048, notice the iptables destination IP == the kubernetes ClusterIP:
+
+            sudo iptables -t nat -L KUBE-SERVICES -n  | column -t | grep game-2048/service-2048
+
+        (-) Describe its target table, notice the DNAT rule sending rqsts from the ClusterIP to the Pod:
+
+            export GAME2048_TARGET_TABLE=$(sudo iptables -t nat -L KUBE-SERVICES -n  | column -t | grep game-2048/service-2048 | awk '{print$1}')
+            echo $GAME2048_TARGET_TABLE
+
+            sudo iptables -t nat -L $GAME2048_TARGET_TABLE
+
+            export GAME2048_POD_TABLE=$(sudo iptables -t nat -L $GAME2048_TARGET_TABLE | grep game-2048/service-2048 | awk '{print$1}')
+            echo $GAME2048_POD_TABLE
+
+            sudo iptables -t nat -L $GAME2048_POD_TABLE
+
+(4) Open a second Terminal in C9 IDE to scale up game2048
+
+    (-) Scale up game 2048 to 5 replicas:
+
+        kubectl scale deployment deployment-2048 -n game-2048 --replicas=5
+
+    (-) Get the service Port:
+
+        kubectl get svc -n game-2048
+        kubectl get svc service-2048 -n game-2048 -o json | jq .spec.ports[].nodePort
+
+(5) Return to SSH session on the worker node:
+
+        (-) See what our target table looks like now:
+
+            sudo iptables -t nat -L $GAME2048_TARGET_TABLE
+
+        (-) See how the node/instance listens via nodeport to FWD a NODEPORT -> a CLUSTER_IP... remember this is replicated on EVERY node in the cluster:
+
+            sudo iptables -t nat -L KUBE-NODEPORTS -n  | column -t
+            sudo iptables -t nat -L KUBE-NODEPORTS -n  | column -t | grep game-2048/service-2048
+
+            export NODEPORT=$(sudo iptables -t nat -L KUBE-NODEPORTS -n  | column -t | grep game-2048/service-2048 | grep -v MASQ | awk -F ':' '{print$3}')
+            echo $NODEPORT
+
+            sudo netstat -ap | grep $NODEPORT
+
+
+(CLEANUP)
+
+    (-) Cleanup Demo Script(s)

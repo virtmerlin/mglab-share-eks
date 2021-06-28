@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: spot-nginx
+  labels:
+    env: test
+spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: 'node-lifecycle'
+            operator: In
+            values:
+            - spot
+  containers:
+  - name: nginx
+    image: 987210092513.dkr.ecr.us-east-1.amazonaws.com/nginx
+    imagePullPolicy: Always
+  tolerations:
+  - key: "spotInstance"
+    operator: "Equal"
+    value: "true"
+    effect: "PreferNoSchedule"

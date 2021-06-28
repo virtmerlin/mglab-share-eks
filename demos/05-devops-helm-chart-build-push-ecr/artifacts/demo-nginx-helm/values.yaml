@@ -1,0 +1,17 @@
+replicaCount: 2
+
+image:
+  repository: nginx
+  pullPolicy: Always
+  tag: ""
+
+service:
+  type: ClusterIP
+  port: 80
+
+autoscaling:
+  enabled: false
+
+nginx:
+  conf:
+    message: "Devops is cool"
