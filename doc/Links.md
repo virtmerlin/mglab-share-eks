@@ -64,7 +64,7 @@
 - [3rd Party Blog: Cluster Autoscaler, VPA, HPA Best practices](https://www.replex.io/blog/kubernetes-in-production-best-practices-for-cluster-autoscaler-hpa-and-vpa)
 - [AWS Node Termination Handler](https://github.com/aws/aws-node-termination-handler)
 - [EKS Workshop w/ xRay](https://www.eksworkshop.com/intermediate/245_x-ray/)
-- Istio/Jaeger Sample App we used in Class
+- Istio/Jaeger Sample App we used in Class Demo:
   - https://istio.io/latest/docs/examples/bookinfo/
   - https://istio.io/latest/docs/examples/microservices-istio/logs-istio/
   - https://istio.io/latest/docs/tasks/observability/distributed-tracing/jaeger/
@@ -75,8 +75,52 @@
 - [Max Pods per ENI by instance type](https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt)
 - [Spot Instance Advisor](https://aws.amazon.com/ec2/spot/instance-advisor/)
 - [EKS Best Practices Github Repo](https://aws.github.io/aws-eks-best-practices/)
-- Fargate & EKS
+- Fargate & EKS:
   - https://docs.aws.amazon.com/eks/latest/userguide/fargate.html
   - https://aws.amazon.com/blogs/aws/new-aws-fargate-for-amazon-eks-now-supports-amazon-efs/
-- Firecracker
+- Firecracker:
   - https://firecracker-microvm.github.io/
+
+#### (8) EKS Networking
+- AWS VPC CNI
+  - https://github.com/aws/amazon-vpc-cni-k8s/
+- Using custom CNI's with EKS:
+  - https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html
+- Istio on EKS:
+  - https://aws.amazon.com/blogs/opensource/getting-started-istio-eks/
+- Layer 7 Application Load Balancing on EKS:
+  - https://docs.aws.amazon.com/eks/latest/userguide/alb-ingress.html
+  - https://aws.amazon.com/premiumsupport/knowledge-center/eks-alb-ingress-controller-setup/
+  - https://github.com/aws/eks-charts/tree/master/stable/aws-load-balancer-controller
+- [EKS & AppMesh](https://www.eksworkshop.com/advanced/330_servicemesh_using_appmesh/)
+- [EKS Jazz AppMesh Workload Blog](https://aws.amazon.com/blogs/compute/learning-aws-app-mesh/)
+
+#### (9/10) EKS AuthZ, AuthN, & Security Best Practices
+- [EKS BestPractices: Security](https://aws.github.io/aws-eks-best-practices/security/docs/index.html)
+- EKS CIS benchmarks:
+  - https://aws.amazon.com/blogs/containers/introducing-cis-amazon-eks-benchmark/
+- EKS Cluster Authentication:
+  - https://docs.aws.amazon.com/eks/latest/userguide/managing-auth.html
+  - [New: Bring Your own IDP](https://aws.amazon.com/blogs/containers/introducing-oidc-identity-provider-authentication-amazon-eks/)
+- IAM roles & K8s Service Accounts:
+  - https://aws.amazon.com/blogs/opensource/introducing-fine-grained-iam-roles-service-accounts/
+  - https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
+- Docker image multi stage builds:
+  - https://docs.docker.com/develop/develop-images/multistage-build/
+- Calico on EKS w VPC CNI:
+  - https://docs.aws.amazon.com/eks/latest/userguide/calico.html
+- AWS Security Groups for Pods:
+  - https://aws.amazon.com/blogs/containers/introducing-security-groups-for-pods/
+  - https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html
+
+#### (11) Upgrading EKS Clusters
+- K8s Cross Version Dependencies:
+  - https://kubernetes.io/docs/setup/release/version-skew-policy/
+- EKS K8s & Platform Versions:
+  - https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html
+  - https://docs.aws.amazon.com/eks/latest/userguide/platform-versions.html
+- EKS Reading of The 'Fine' Manuals for Upgrades:
+  - https://docs.aws.amazon.com/eks/latest/userguide/update-cluster.html
+  - https://docs.aws.amazon.com/eks/latest/userguide/update-managed-node-group.html
+  - https://docs.aws.amazon.com/eks/latest/userguide/update-workers.html
+  - https://kubernetes.io/docs/tasks/administer-cluster/cluster-management/
