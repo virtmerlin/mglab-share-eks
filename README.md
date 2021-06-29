@@ -60,6 +60,6 @@ Demo Name     | Demo Link     | Last Automated Test Timestamp
 07-spot-n-ondemand-nodegroup-taints-n-affinity | [link](demos/07-spot-n-ondemand-nodegroup-taints-n-affinity/demo.md)   | Manual 06-28-2021
 08-aws-vpc-cni-pod-ip-assigment | ![link](demos/08-aws-vpc-cni-pod-ip-assigment/demo.txt)   | Not Yet Automated
 08-aws-vpc-cni-kubeproxy+iptables | ![link](demos/08-aws-vpc-cni-kubeproxy+iptables/demo.txt)   | Not Yet Automated
-08-aws-lb-controller-ingress | ![link](demos/08-aws-lb-controller-ingress/demo.txt)   | Not Yet Automated
+08-aws-lb-controller-ingress | [link](demos/08-aws-lb-controller-ingress/demo.md)   | Manual 06-29-2021
 09-aws-authenticator-review | ![link](demos/09-aws-authenticator-review/demo.txt)   | Not Yet Automated
 09-aws-irsa-oidc-review | ![link](demos/09-aws-irsa-oidc-review/demo.txt)   | Not Yet Automated
