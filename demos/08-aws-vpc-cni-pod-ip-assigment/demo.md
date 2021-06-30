@@ -1,4 +1,4 @@
-## 08-aws-vpc-cni-kubeproxy+iptables
+## 08-aws-vpc-cni-pod-ip-assigment
 #### GIVEN:
   - A developer desktop with docker & git installed (AWS Cloud9)
   - An EKS cluster created via eksctl from demo 04-create-advanced-cluster-eksctl-existing-vpc
@@ -10,7 +10,7 @@
   - I will start a remote session onto any EC2 AL2 Docker based node
 
 #### SO THAT:
-  - I can see how the kubeproxy uses iptables to load distribute to pods
+  - I can see how the AWS VCP CNI sets up Pod IP assignment
 
 #### [Return to Main Readme](https://github.com/virtmerlin/mglab-share-eks#demos)
 
@@ -46,17 +46,12 @@ kubectl get all -A
 kubectl apply -f ./artifacts/08-DEMO-ingress-app.yaml
 kubectl get pod -o wide -n game-2048
 ```
-- Make note of the K8s service 'ClusterIP' for the game2048 Nodeport type service:
-```
-kubectl get svc -n game-2048
-```
 - Make note of the single replica of game-2048 pod's IPv4 address:
 ```
 export POD_IP=$(kubectl get pod -o wide -n game-2048 | grep deployment-2048 | awk '{print$6}')
 echo $POD_IP
 ```
-
-#### 2: SSH or open SSM Session Manager into any EC2 AL2 Docker based node in the cluster.
+#### 2: SSH or open SSM Session Manager into the EC2 AL2 Docker based node in the cluster running the pod.
 - [SSM Starting a Session via SSM](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html)
 - Its a FAR better practice to use SSM Session Manager, if SSM is functional in your account, please open a SSM Session to any EC2 host, but if SSM is not enabled in your account you can use the following steps to SSH.
   - Get the host private ip that game-2048 is running on:
@@ -82,57 +77,48 @@ echo $POD_IP
   ssh -i ../04-create-advanced-cluster-eksctl-existing-vpc/cluster_eksctl_key.pem ec2-user@${EC2_NODE}
   ```
 
-#### 3: Within the SSM|SSH remote session, explore kube-proxy & iptables.
-- List all iptables PREROUTING tables, notice the table: KUBE-SERVICES:
+#### 3: Within the SSM|SSH remote session, see how the IP address is assigned by the AWS VPC CNI default settings.
+- Get the container ids of a workload you want to inspect.  You should see also pause container for every pod running on the node:
 ```
-sudo iptables -t nat -L PREROUTING | column -t
+docker ps -a | grep 2048
+sleep 3
+export CTR_ID=$(docker ps -a | grep docker-2048 | awk '{print$1}')
+export CTR_ID_PAUSE=$(docker ps -a | grep 2048 | grep pause | awk '{print$1}')
+echo $CTR_ID
+echo $CTR_ID_PAUSE
 ```
-- List all iptables KUBE-SERVICES tables:
+- Now get the pod veth(A) ID mapped using the app container:
 ```
-sudo iptables -t nat -L KUBE-SERVICES -n  | column -t
+docker exec -it $CTR_ID ash -c 'cat /sys/class/net/eth0/iflink'
+export CTR_VETH_POD=$(docker exec -it $CTR_ID ash -c 'cat /sys/class/net/eth0/iflink')
+echo $CTR_VETH_POD
 ```
-- Find the target iptable for game-2048, notice the iptables destination IP == the K8s ClusterIP you made note of earlier:
+- Now get the host namespace veth(B) 'linked' to the pod network namespace using that veth(A) pod ID from the container:
 ```
-sudo iptables -t nat -L KUBE-SERVICES -n  | column -t | grep game-2048/service-2048
+grep -l [[ INSERT VAL OF $CTR_VETH_POD HERE ]] /sys/class/net/*/ifindex
+export CTR_VETH_NODE=$(grep -l 8 /sys/class/net/*/ifindex | awk -F '/' '{print$5}')
+echo $CTR_VETH_NODE
 ```
-- Describe its target table, notice the DNAT rule is sending requests targeted to the ClusterIP to the actual Pod IPv4 address you made note of earlier:
+- You can see this link via the ip link list command, notice it has its own network names space id for the 2 linked veths:
 ```
-export GAME2048_TARGET_TABLE=$(sudo iptables -t nat -L KUBE-SERVICES -n  | column -t | grep game-2048/service-2048 | awk '{print$1}')
-echo $GAME2048_TARGET_TABLE
-sudo iptables -t nat -L $GAME2048_TARGET_TABLE
-export GAME2048_POD_TABLE=$(sudo iptables -t nat -L $GAME2048_TARGET_TABLE | grep game-2048/service-2048 | awk '{print$1}')
-echo $GAME2048_POD_TABLE
-sudo iptables -t nat -L $GAME2048_POD_TABLE
+ip link list | grep $CTR_VETH_NODE
 ```
-
-#### 4: Open a second Terminal in Cloud9 IDE to scale up game2048.
-- [Cloud9 Terminal](https://docs.aws.amazon.com/cloud9/latest/user-guide/tour-ide.html#tour-ide-terminal)
-- In a second 'terminal' on the Cloud9 Instance, scale up game 2048 to 5 replicas:
-```
-kubectl scale deployment deployment-2048 -n game-2048 --replicas=5
-```
-- Get the K8s Nodeport service 'Port':
-```
-kubectl get svc -n game-2048
-kubectl get svc service-2048 -n game-2048 -o json | jq .spec.ports[].nodePort
-```
-
-#### 5: Return to the SSM|SSH remote session on the worker node.
-- See what our target table looks like now:
-```
-sudo iptables -t nat -L $GAME2048_TARGET_TABLE
-```
-- See how the node/instance listens via nodeport to FWD a NODEPORT -> a CLUSTER_IP... remember this is replicated on EVERY node in the cluster:
-```
-sudo iptables -t nat -L KUBE-NODEPORTS -n  | column -t
-sudo iptables -t nat -L KUBE-NODEPORTS -n  | column -t | grep game-2048/service-2048
-export NODEPORT=$(sudo iptables -t nat -L KUBE-NODEPORTS -n  | column -t | grep game-2048/service-2048 | grep -v MASQ | awk -F ':' '{print$3}')
-echo $NODEPORT
-```
-- Lets see what process is actually doing all of this mapping:
-```
-sudo netstat -ap | grep $NODEPORT
-```
+- Now lets look at how those veths route in the host to get/in out:
+  - Get IP of Pod using pause container ID:
+  ```
+  CMD="curl -s http://localhost:61679/v1/enis | jq '.ENIs[].IPv4Addresses[] | select(.IPAMKey.containerID|startswith(\"$CTR_ID_PAUSE\")) | .Address'"
+  export CTR_IP=$(eval $CMD | tr -d '"')
+  echo $CTR_IP
+  ```
+  - Get inbound/outbound rules from host for that pod:
+  ```
+  ip rule list | grep $CTR_IP
+  ```
+  - Get the Inbound route for traffic coming into the pod, we can see the route table send all traffic in for the pod to our veth :)
+  ```
+  ip route show table main | grep $CTR_IP
+  echo $CTR_VETH_NODE
+  ```
 ---------------------------------------------------------------
 ---------------------------------------------------------------
 ### DEPENDENTS
