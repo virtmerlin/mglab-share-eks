@@ -80,6 +80,7 @@ echo $POD_IP
 #### 3: Within the SSM|SSH remote session, see how the IP address is assigned by the AWS VPC CNI default settings.
 - Get the container ids of a workload you want to inspect.  You should see also pause container for every pod running on the node:
 ```
+sudo su
 docker ps -a | grep 2048
 sleep 3
 export CTR_ID=$(docker ps -a | grep docker-2048 | awk '{print$1}')
@@ -90,7 +91,12 @@ echo $CTR_ID_PAUSE
 - Now get the pod veth(A) ID mapped using the app container:
 ```
 docker exec -it $CTR_ID ash -c 'cat /sys/class/net/eth0/iflink'
-export CTR_VETH_POD=$(docker exec -it $CTR_ID ash -c 'cat /sys/class/net/eth0/iflink')
+```
+```
+docker exec -it $CTR_ID ash -c 'cat /sys/class/net/eth0/iflink' > /tmp/mycntreni.value
+```
+```
+export CTR_VETH_POD=$(cat /tmp/mycntreni.value)
 echo $CTR_VETH_POD
 ```
 - Now get the host namespace veth(B) 'linked' to the pod network namespace using that veth(A) pod ID from the container:
