@@ -42,12 +42,11 @@ eksctl utils write-kubeconfig --name cluster-eksctl --region $C9_REGION --authen
 kubectl config view --minify
 kubectl get all -A
 ```
-- Add Current AWS user mapping to K8s RBAC to system:masters group so that we don't have to assume the cluster creator role for demo:
+- Add Current AWS user mapping to K8s RBAC to system:masters group so that we don't have to assume the cluster creator role for new nodegroup demo:
 ```
-ROLE="    - rolearn: $(aws sts get-caller-identity --query Arn | tr -d '"')\n      username: lab-admin\n      groups:\n        - system:masters"
-kubectl get -n kube-system configmap/aws-auth -o yaml | awk "/mapRoles: \|/{print;print \"$ROLE\";next}1" > /tmp/aws-auth-patch.yml
-kubectl patch configmap/aws-auth -n kube-system --patch "$(cat /tmp/aws-auth-patch.yml)"
-kubectl get -n kube-system configmap/aws-auth -o yaml
+aws sts get-caller-identity
+export MY_IAM_USER=$(aws sts get-caller-identity --region $C9_REGION --query Arn | tr -d '"')
+eksctl create iamidentitymapping --cluster cluster-eksctl --username mglab-admin --group system:masters --arn $MY_IAM_USER
 ```
 - Create Nodegroup:
 ```
@@ -104,4 +103,5 @@ kubectl get ds -n kube-system
 - Do not cleanup if you plan to run any dependent demos
 ```
 eksctl delete nodegroup -f ./artifacts/07-DEMO-eks-eksctl-self-managed-nodegroup.yaml --approve
+eksctl delete iamidentitymapping --cluster cluster-eksctl --arn $MY_IAM_USER --all
 ```
