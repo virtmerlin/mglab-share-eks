@@ -44,9 +44,10 @@ kubectl get all -A
 ```
 - Add Current AWS user mapping to K8s RBAC to system:masters group so that we don't have to assume the cluster creator role for new nodegroup demo:
 ```
-aws sts get-caller-identity
-export MY_IAM_USER=$(aws sts get-caller-identity --region $C9_REGION --query Arn | tr -d '"')
-eksctl create iamidentitymapping --cluster cluster-eksctl --username mglab-admin --group system:masters --arn $MY_IAM_USER
+ROLE="    - rolearn: $(aws sts get-caller-identity --query Arn | tr -d '"')\n      username: lab-admin\n      groups:\n        - system:masters"
+kubectl get -n kube-system configmap/aws-auth -o yaml | awk "/mapRoles: \|/{print;print \"$ROLE\";next}1" > /tmp/aws-auth-patch.yml
+kubectl patch configmap/aws-auth -n kube-system --patch "$(cat /tmp/aws-auth-patch.yml)"
+kubectl get -n kube-system configmap/aws-auth -o yaml
 ```
 - Create Nodegroup:
 ```
