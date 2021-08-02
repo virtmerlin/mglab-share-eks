@@ -2,7 +2,8 @@
 
 #### [Return to Main Readme](https://github.com/virtmerlin/mglab-share-eks#links)
 
-#### (1) Container Fundamentals
+#### (1) Container & Kubernetes Fundamentals
+
 - [Docker File Reference](https://docs.docker.com/engine/reference/builder/)
 - [K8s Supported Container Runtimes](https://kubernetes.io/docs/setup/production-environment/container-runtimes/)
 - [Container Runtimes versus Container optimized VMMs](https://www.inovex.de/blog/containers-docker-containerd-nabla-kata-firecracker/)
@@ -11,7 +12,6 @@
 - [The 1 Factor App](https://tanzu.vmware.com/content/blog/1-factor-app-kubernetes-modernization)
 - [The Open Source Dive Tool](https://github.com/wagoodman/dive)
 
-#### (2) Kubernetes Fundamentals
 - [CNCF Landscape](https://landscape.cncf.io/)
 - [K8s Latest Release Information](https://www.kubernetes.dev/resources/release/)
 - [K8s CLI CheatSheet](https://kubernetes.io/docs/reference/kubectl/cheatsheet/)
@@ -30,7 +30,7 @@
 - [AWS EBS CSI Driver](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html)
 - [AWS FSx Lustre CSI Driver](https://docs.aws.amazon.com/eks/latest/userguide/fsx-csi.html)
 
-#### (3) EKS Fundamentals
+#### (2) EKS Fundamentals
 - [Public AWS EKS Ref Customers](https://aws.amazon.com/eks/customers/)
 - [EKS Video Blogcast 'Containers From The Couch'](https://containersfromthecouch.com/)
 - [EKS Best Practices Guide](https://aws.github.io/aws-eks-best-practices/)
@@ -38,14 +38,14 @@
 - [EKS Optimized AMIs](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-amis.html)
 - [EKCTL the Official CLI for EKS](https://eksctl.io/)
 
-#### (4) Building an EKS Cluster
+#### (3) Building an EKS Cluster
 - [GITHUB: AWS IAM Authenticator](https://github.com/kubernetes-sigs/aws-iam-authenticator)
 - [AWS EKS Identity Based Policy Examples](https://docs.aws.amazon.com/eks/latest/userguide/security_iam_id-based-policy-examples.html)
 - [Create EKS Kubeconfig](https://docs.aws.amazon.com/eks/latest/userguide/create-kubeconfig.html)
 - [AWS K8s Cluster Autoscaler](https://docs.aws.amazon.com/eks/latest/userguide/cluster-autoscaler.html)
 - [AWS CDK Create EKS Cluster](https://cdk-eks-devops.workshop.aws/en/40-deploy-clusters/200-cluster/210-cluster.html)
 
-#### (5) Deploying Apps to your EKS Cluster
+#### (4) Deploying Apps to your EKS Cluster
 - [CI/CD EKS Workshop w/ ArgoCD](https://www.eksworkshop.com/intermediate/290_argocd/)
 - [CI/CD EKS Workshop w/ FluzCD](https://www.eksworkshop.com/intermediate/260_weave_flux/installweaveflux/)
 - [CI/CD with EKS & Spinnaker](https://aws.amazon.com/blogs/opensource/continuous-delivery-spinnaker-amazon-eks/)
@@ -54,7 +54,7 @@
 - [CDK8s Get Started](https://cdk8s.io/docs/latest/getting-started)
 - [CDK8s Github Repo](https://github.com/awslabs/cdk8s)
 
-#### (6) Observability with EKS
+#### (5) Observability with EKS
 - [K8s monitoring Tools](https://kubernetes.io/docs/tasks/debug-application-cluster/resource-usage-monitoring/)
 - [K8s Metrics Server](https://github.com/kubernetes-sigs/metrics-server)
 - [K8s Custom Metrics](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/instrumentation/custom-metrics-api.md)
@@ -69,7 +69,7 @@
   - https://istio.io/latest/docs/examples/microservices-istio/logs-istio/
   - https://istio.io/latest/docs/tasks/observability/distributed-tracing/jaeger/
 
-#### (7) Efficient & Well Architected clusters
+#### (6) Efficient & Well Architected clusters
 - [Proportional Autoscaler](https://github.com/kubernetes-sigs/cluster-proportional-autoscaler)
 - [EKS pricing](https://aws.amazon.com/eks/pricing/)
 - [Max Pods per ENI by instance type](https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt)
@@ -81,7 +81,7 @@
 - Firecracker:
   - https://firecracker-microvm.github.io/
 
-#### (8) EKS Networking
+#### (7) EKS Networking
 - AWS VPC CNI
   - https://github.com/aws/amazon-vpc-cni-k8s/
 - Using custom CNI's with EKS:
@@ -95,7 +95,7 @@
 - [EKS & AppMesh](https://www.eksworkshop.com/advanced/330_servicemesh_using_appmesh/)
 - [EKS Jazz AppMesh Workload Blog](https://aws.amazon.com/blogs/compute/learning-aws-app-mesh/)
 
-#### (9/10) EKS AuthZ, AuthN, & Security Best Practices
+#### (8/9) EKS AuthZ, AuthN, & Security Best Practices
 - [EKS BestPractices: Security](https://aws.github.io/aws-eks-best-practices/security/docs/index.html)
 - EKS CIS benchmarks:
   - https://aws.amazon.com/blogs/containers/introducing-cis-amazon-eks-benchmark/
@@ -113,7 +113,7 @@
   - https://aws.amazon.com/blogs/containers/introducing-security-groups-for-pods/
   - https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html
 
-#### (11) Upgrading EKS Clusters
+#### (10) Upgrading EKS Clusters
 - K8s Cross Version Dependencies:
   - https://kubernetes.io/docs/setup/release/version-skew-policy/
 - EKS K8s & Platform Versions:

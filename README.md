@@ -47,20 +47,20 @@ Here is the folder structure for each demo:
 
 Demo Name     | Demo Link     | Last Automated Test Timestamp
 --- | ---| ---
-00-setup-cloud9     | [link](demos/00-setup-cloud9/demo.md)   | Manual 06-28-2021
-01-docker-build-wordpress     | [link](demos/01-docker-build-wordpress/demo.md)   | Manual 06-28-2021
-01-kubernetes-run-wordpress-minikube     | [link](demos/01-kubernetes-run-wordpress-minikube/demo.md)   | Manual 06-28-2021
-02-create-a-basic-cluster-eksctl-one-liner     | [link](demos/02-create-a-basic-cluster-eksctl-one-liner/demo.md)   | Manual 06-28-2021
-03-create-advanced-cluster-eksctl-existing-vpc     | [link](demos/03-create-advanced-cluster-eksctl-existing-vpc/demo.md)   | Manual 06-28-2021
-04-devops-docker-push-ecr     | [link](demos/04-devops-docker-push-ecr/demo.md)   | Manual 06-28-2021
-04-devops-helm-chart-build-push-ecr     | [link](demos/04-devops-helm-chart-build-push-ecr/demo.md)   | Manual 06-28-2021
-04-devops-simple-code-pipeline     | [link](demos/04-devops-simple-code-pipeline/demo.md)   | Manual 06-28-2021
-06-setup-prometheus-and-container-insights     | [link](demos/06-setup-prometheus-and-container-insights/demo.md)   | Manual 06-28-2021  
-06-setup-managed-prometheus-and-eks     | [link](demos/06-setup-managed-prometheus-and-eks/demo.md)   | Manual 06-28-2021  
-06-cluster-autoscaler     | [link](demos/06-cluster-autoscaler/demo.md)   | Manual 06-28-2021
-07-spot-n-ondemand-nodegroup-taints-n-affinity | [link](demos/07-spot-n-ondemand-nodegroup-taints-n-affinity/demo.md)   | Manual 06-28-2021
-08-aws-vpc-cni-pod-ip-assigment | [link](demos/08-aws-vpc-cni-pod-ip-assigment/demo.md)   | Manual 06-29-2021
-08-aws-vpc-cni-kubeproxy+iptables | [link](demos/08-aws-vpc-cni-kubeproxy+iptables/demo.md)   | Manual 06-29-2021
-08-aws-lb-controller-ingress | [link](demos/08-aws-lb-controller-ingress/demo.md)   | Manual 06-29-2021
-09-aws-authenticator-review | [link](demos/09-aws-authenticator-review/demo.md)   | Manual 06-30-2021
-09-aws-irsa-oidc-review | [link](demos/09-aws-irsa-oidc-review/demo.md)   | Manual 06-30-2021
+00-setup-cloud9     | [link](demos/00-setup-cloud9/demo.md)   | Manual 08-01-2021
+01-docker-build-wordpress     | [link](demos/01-docker-build-wordpress/demo.md)   | Manual 08-01-2021
+01-kubernetes-run-wordpress-minikube     | [link](demos/01-kubernetes-run-wordpress-minikube/demo.md)   | Manual 08-01-2021
+02-create-a-basic-cluster-eksctl-one-liner     | [link](demos/02-create-a-basic-cluster-eksctl-one-liner/demo.md)   | Manual 08-01-2021
+03-create-advanced-cluster-eksctl-existing-vpc     | [link](demos/03-create-advanced-cluster-eksctl-existing-vpc/demo.md)   | Manual 08-01-2021
+04-devops-docker-push-ecr     | [link](demos/04-devops-docker-push-ecr/demo.md)   | Manual 08-01-2021
+04-devops-helm-chart-build-push-ecr     | [link](demos/04-devops-helm-chart-build-push-ecr/demo.md)   | Manual 08-01-2021
+04-devops-simple-code-pipeline     | [link](demos/04-devops-simple-code-pipeline/demo.md)   | Manual 08-01-2021
+05-setup-prometheus-and-container-insights     | [link](demos/05-setup-prometheus-and-container-insights/demo.md)   | REWORK  
+05-setup-managed-prometheus-and-eks     | [link](demos/05-setup-managed-prometheus-and-eks/demo.md)   | REWORK  
+05-cluster-autoscaler     | [link](demos/05-cluster-autoscaler/demo.md)   | Manual REWORK
+06-spot-n-ondemand-nodegroup-taints-n-affinity | [link](demos/06-spot-n-ondemand-nodegroup-taints-n-affinity/demo.md)   | REWORK
+07-aws-vpc-cni-pod-ip-assigment | [link](demos/07-aws-vpc-cni-pod-ip-assigment/demo.md)   | REWORK
+07-aws-vpc-cni-kubeproxy+iptables | [link](demos/07-aws-vpc-cni-kubeproxy+iptables/demo.md)   | REWORK
+07-aws-lb-controller-ingress | [link](demos/07-aws-lb-controller-ingress/demo.md)   | REWORK
+08-aws-authenticator-review | [link](demos/08-aws-authenticator-review/demo.md)   | REWORK
+08-aws-irsa-oidc-review | [link](demos/08-aws-irsa-oidc-review/demo.md)   | REWORK
