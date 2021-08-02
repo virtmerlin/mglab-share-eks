@@ -157,7 +157,7 @@ kubectl get pvc -n wordpress
 ```
 - Create statefulsets(sts):
 ```
-kubectl apply -f ./artifacts/02-DEMO-k8s-stateful-set.yaml
+kubectl apply -f ./artifacts/DEMO-k8s-stateful-set.yaml
 kubectl get sts web --watch
 ```
 - Show new persistentvolumes(pv) & persistentvolumeclaims(pvc) matched to replicas:
