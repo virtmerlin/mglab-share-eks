@@ -26,15 +26,18 @@
 ---------------------------------------------------------------
 ### DEMO
 
-#### 1: Create Wordpress OCI image & inspect it with dive (! If dockerhub limits your pull during build, please login to dockerhub).
+#### 0: Reset Cloud9 Instance environ from previous demo(s).
 - Reset your region & AWS account variables in case you launched a new terminal session:
 ```
 cd ~/environment/mglab-share-eks/demos/01-docker-build-wordpress/
 export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
-echo $C9_REGION
 export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
+clear
+echo $C9_REGION
 echo $C9_AWS_ACCT
 ```
+
+#### 1: Create Wordpress OCI image & inspect it with dive (! If dockerhub limits your pull during build, please login to dockerhub).
 - Clone the public Docker Wordpress git repo and review the 'Dockerfile' you will use to build the OCI image:
 ```
 cd ~/environment

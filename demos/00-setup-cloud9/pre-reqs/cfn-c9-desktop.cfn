@@ -6,7 +6,7 @@ Resources:
   MyC9Environment:
     Type: "AWS::Cloud9::EnvironmentEC2"
     Properties:
-      Name: c9-archite-accel-demo-dev-wkstn
+      Name: c9-eks-demo-dev-wkstn
       InstanceType: t3.large
       ConnectionType: "CONNECT_SSM"
       Description: "AWS Cloud9 instance accessible using AWS Systems Manager so PVRE will stop bugging me for no good reason"

@@ -31,15 +31,18 @@
 ---------------------------------------------------------------
 ### DEMO
 
-#### 1: Deploy a Kubernetes cluster (minikube) on Cloud9 instance.
+#### 0: Reset Cloud9 Instance environ from previous demo(s).
 - Reset your region & AWS account variables in case you launched a new terminal session:
 ```
-cd ~/environment/mglab-share-eks/demos/02-kubernetes-run-wordpress-minikube/
+cd ~/environment/mglab-share-eks/demos/01-kubernetes-run-wordpress-minikube/
 export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
-echo $C9_REGION
 export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
+clear
+echo $C9_REGION
 echo $C9_AWS_ACCT
 ```
+
+#### 1: Deploy a Kubernetes cluster (minikube) on Cloud9 instance.
 - Install minikube CLI & launch K8s cluster:
 ```
 curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
