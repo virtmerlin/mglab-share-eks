@@ -43,6 +43,7 @@ Here is the folder structure for each demo:
 - [Shared Doc Links](doc/Links.md)
 
 #### Demos
+- v1.1
 
 Demo Name     | Demo Link     | Last Automated Test Timestamp
 --- | ---| ---
