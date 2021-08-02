@@ -1,4 +1,4 @@
-## 03-create-a-basic-cluster-eksctl-one-liner
+## 02-create-a-basic-cluster-eksctl-one-liner
 #### GIVEN:
   - A developer desktop with docker & git installed (AWS Cloud9)
 
@@ -28,17 +28,20 @@
 ---------------------------------------------------------------
 ### DEMO
 
+#### 0: Reset Cloud9 Instance environ from previous demo(s).
+- Reset your region & AWS account variables in case you launched a new terminal session:
+```
+cd ~/environment/mglab-share-eks/demos/02-create-a-basic-cluster-eksctl-one-liner/
+export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
+export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
+clear
+echo $C9_REGION
+echo $C9_AWS_ACCT
+```
+
 #### 1: Install the eksctl cli onto the Cloud9 IDE instance.
   - [DOC LINK: Installing eksctl](https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html)
 
-- Reset your region & AWS account variables in case you launched a new terminal session:
-```
-cd ~/environment/mglab-share-eks/demos/03-create-a-basic-cluster-eksctl-one-liner/
-export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
-echo $C9_REGION
-export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
-echo $C9_AWS_ACCT
-```
 - Download & install the eksctl cli:
 ```
 curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
@@ -105,7 +108,7 @@ kubectl get nodes -o wide
   - Exit the watch loop with _ctrl-c_ after all pods are in a running state.
 
 ```
-kubectl apply -f ./artifacts/03-DEMO-k8s-all-in-one-fargate.yaml
+kubectl apply -f ./artifacts/DEMO-k8s-all-in-one-fargate.yaml
 watch kubectl get pods -o wide -n wordpress-fargate
 ```
 - Get all K8s nodes, you should see some additional `fargate` nodes:
