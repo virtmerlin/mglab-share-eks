@@ -52,9 +52,9 @@ Demo Name     | Demo Link     | Last Automated Test Timestamp
 01-kubernetes-run-wordpress-minikube     | [link](demos/01-kubernetes-run-wordpress-minikube/demo.md)   | Manual 06-28-2021
 02-create-a-basic-cluster-eksctl-one-liner     | [link](demos/02-create-a-basic-cluster-eksctl-one-liner/demo.md)   | Manual 06-28-2021
 03-create-advanced-cluster-eksctl-existing-vpc     | [link](demos/03-create-advanced-cluster-eksctl-existing-vpc/demo.md)   | Manual 06-28-2021
-05-devops-docker-push-ecr     | [link](demos/05-devops-docker-push-ecr/demo.md)   | Manual 06-28-2021
-05-devops-helm-chart-build-push-ecr     | [link](demos/05-devops-helm-chart-build-push-ecr/demo.md)   | Manual 06-28-2021
-05-devops-simple-code-pipeline     | [link](demos/05-devops-simple-code-pipeline/demo.md)   | Manual 06-28-2021
+04-devops-docker-push-ecr     | [link](demos/04-devops-docker-push-ecr/demo.md)   | Manual 06-28-2021
+04-devops-helm-chart-build-push-ecr     | [link](demos/04-devops-helm-chart-build-push-ecr/demo.md)   | Manual 06-28-2021
+04-devops-simple-code-pipeline     | [link](demos/04-devops-simple-code-pipeline/demo.md)   | Manual 06-28-2021
 06-setup-prometheus-and-container-insights     | [link](demos/06-setup-prometheus-and-container-insights/demo.md)   | Manual 06-28-2021  
 06-setup-managed-prometheus-and-eks     | [link](demos/06-setup-managed-prometheus-and-eks/demo.md)   | Manual 06-28-2021  
 06-cluster-autoscaler     | [link](demos/06-cluster-autoscaler/demo.md)   | Manual 06-28-2021

@@ -1,7 +1,7 @@
-## 05-devops-helm-chart-build-push-ecr
+## 04-devops-helm-chart-build-push-ecr
 #### GIVEN:
   - A developer desktop with docker & git installed (AWS Cloud9)
-  - An EKS cluster created via eksctl from demo 04-create-advanced-cluster-eksctl-existing-vpc
+  - An EKS cluster created via eksctl from demo 03-create-advanced-cluster-eksctl-existing-vpc
   - A helm chart templates directory prepared for a simple nginx deployment
 
 #### WHEN:
@@ -23,31 +23,34 @@
 ---------------------------------------------------------------
 ### REQUIRES
 - 00-setup-cloud9
-- 04-create-advanced-cluster-eksctl-existing-vpc
+- 03-create-advanced-cluster-eksctl-existing-vpc
 
 ---------------------------------------------------------------
 ---------------------------------------------------------------
 ### DEMO
 
-#### 1: Create ECR repository to push helm chart up to.
-- [DOC LINK](https://docs.aws.amazon.com/AmazonECR/latest/userguide/ECR_on_EKS.html#using-helm-charts-eks)
+#### 0: Reset Cloud9 Instance environ from previous demo(s).
 - Reset your region & AWS account variables in case you launched a new terminal session:
 ```
-cd ~/environment/mglab-share-eks/demos/05-devops-helm-chart-build-push-ecr
+cd ~/environment/mglab-share-eks/demos/04-devops-helm-chart-build-push-ecr/
 export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
-echo $C9_REGION
 export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
-echo $C9_AWS_ACCT
 export AWS_ACCESS_KEY_ID=$(cat ~/.aws/credentials | grep aws_access_key_id | awk '{print$3}')
 export AWS_SECRET_ACCESS_KEY=$(cat ~/.aws/credentials | grep aws_secret_access_key | awk '{print$3}')
-```
-- Create ECR repository to share our image:
-```
-cd ~/environment/mglab-share-eks/demos/05-devops-helm-chart-build-push-ecr
-aws ecr create-repository --repository-name 05-devops-helm-chart-build-push-ecr --region $C9_REGION
+clear
+echo $C9_REGION
+echo $C9_AWS_ACCT
 ```
 
-#### 2: Update our kubeconfig to interact with the cluster created in 04-create-advanced-cluster-eksctl-existing-vpc.
+#### 1: Create ECR repository to push helm chart up to.
+- [DOC LINK](https://docs.aws.amazon.com/AmazonECR/latest/userguide/ECR_on_EKS.html#using-helm-charts-eks)
+
+- Create ECR repository to share our image:
+```
+aws ecr create-repository --repository-name 04-devops-helm-chart-build-push-ecr --region $C9_REGION
+```
+
+#### 2: Update our kubeconfig to interact with the cluster created in 03-create-advanced-cluster-eksctl-existing-vpc.
 - Review your kubeconfig:
 ```
 eksctl utils write-kubeconfig --name cluster-eksctl --region $C9_REGION --authenticator-role-arn arn:aws:iam::${C9_AWS_ACCT}:role/cluster-eksctl-creator-role
@@ -66,7 +69,7 @@ chmod 700 get_helm.sh
 #### 4: Build Helm Chart & store locally on C9 instance.
 - Build Chart:
 ```
-cd ~/environment/mglab-share-eks/demos/05-devops-helm-chart-build-push-ecr/artifacts
+cd ~/environment/mglab-share-eks/demos/04-devops-helm-chart-build-push-ecr/artifacts
 helm package demo-nginx-helm
 ```
 
@@ -77,13 +80,13 @@ export HELM_EXPERIMENTAL_OCI=1
 ```
 - Get current AWS account & build local helm OCI compliant chart:
 ```
-helm chart save ./demo-nginx-helm $C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com/05-devops-helm-chart-build-push-ecr:demo-nginx-helm
+helm chart save ./demo-nginx-helm $C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com/04-devops-helm-chart-build-push-ecr:demo-nginx-helm
 helm chart ls
 ```
 - AuthN to ECR and push up Chart:
 ```
 aws ecr get-login-password | helm registry login --username AWS --password-stdin $C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com
-helm chart push $C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com/05-devops-helm-chart-build-push-ecr:demo-nginx-helm
+helm chart push $C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com/04-devops-helm-chart-build-push-ecr:demo-nginx-helm
 ```
 
 #### 6: Deploy Chart from ECR to eks cluster 'cluster-eksctl'.
@@ -94,8 +97,8 @@ ls
 ```
 - Pull OCI Helm chart down to local C9 instance into temp local directory:
 ```
-helm chart pull $C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com/05-devops-helm-chart-build-push-ecr:demo-nginx-helm
-helm chart export $C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com/05-devops-helm-chart-build-push-ecr:demo-nginx-helm
+helm chart pull $C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com/04-devops-helm-chart-build-push-ecr:demo-nginx-helm
+helm chart export $C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com/04-devops-helm-chart-build-push-ecr:demo-nginx-helm
 ls -all
 ```
 - Show chart possible values to override:
@@ -179,7 +182,7 @@ helm pull bitnami/wordpress
 ```
 export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
 export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
-aws ecr delete-repository --repository-name 05-devops-helm-chart-build-push-ecr --region $C9_REGION --force
+aws ecr delete-repository --repository-name 04-devops-helm-chart-build-push-ecr --region $C9_REGION --force
 eksctl utils write-kubeconfig --name cluster-eksctl --region $C9_REGION --authenticator-role-arn arn:aws:iam::${C9_AWS_ACCT}:role/cluster-eksctl-creator-role
 helm delete my-nginx -n default
 ```

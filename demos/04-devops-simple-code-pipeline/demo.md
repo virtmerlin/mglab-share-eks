@@ -1,7 +1,7 @@
-## 05-devops-simple-code-pipeline
+## 04-devops-simple-code-pipeline
 #### GIVEN:
   - A developer desktop with docker & git installed (AWS Cloud9)
-  - An EKS cluster created via eksctl from demo 04-create-advanced-cluster-eksctl-existing-vpc
+  - An EKS cluster created via eksctl from demo 03-create-advanced-cluster-eksctl-existing-vpc
   - Cloud Formation to create my devops environment
 
 #### WHEN:
@@ -26,32 +26,35 @@
 ---------------------------------------------------------------
 ### REQUIRES
 - 00-setup-cloud9
-- 04-create-advanced-cluster-eksctl-existing-vpc
+- 03-create-advanced-cluster-eksctl-existing-vpc
 
 ---------------------------------------------------------------
 ---------------------------------------------------------------
 ### DEMO
 
-#### 1: Deploy CodeCommit, ECR, & Code Pipeline/Build projects via Cloud Formation templates.
+#### 0: Reset Cloud9 Instance environ from previous demo(s).
 - Reset your region & AWS account variables in case you launched a new terminal session:
 ```
-cd ~/environment/mglab-share-eks/demos/05-devops-simple-code-pipeline
+cd ~/environment/mglab-share-eks/demos/04-devops-simple-code-pipeline/
 export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
-echo $C9_REGION
 export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
-echo $C9_AWS_ACCT
 export AWS_ACCESS_KEY_ID=$(cat ~/.aws/credentials | grep aws_access_key_id | awk '{print$3}')
 export AWS_SECRET_ACCESS_KEY=$(cat ~/.aws/credentials | grep aws_secret_access_key | awk '{print$3}')
+clear
+echo $C9_REGION
+echo $C9_AWS_ACCT
 ```
+
+#### 1: Deploy CodeCommit, ECR, & Code Pipeline/Build projects via Cloud Formation templates.
 - Deploy CloudFormation to create pipeline environment:
 ```
-aws cloudformation deploy --region $C9_REGION --template-file ./artifacts/05-DEMO-simple-CodePipeline-Build.cfn \
+aws cloudformation deploy --region $C9_REGION --template-file ./artifacts/DEMO-simple-CodePipeline-Build.cfn \
     --capabilities CAPABILITY_IAM \
     --parameter-overrides EKSClusterName=cluster-eksctl \
-    --stack-name eks-demos-05-devops-simple-code-pipeline \
+    --stack-name eks-demos-04-devops-simple-code-pipeline \
     --tags CLASS=EKS
 ```
-#### 2: Update our kubeconfig to interact with the cluster created in 04-create-advanced-cluster-eksctl-existing-vpc.
+#### 2: Update our kubeconfig to interact with the cluster created in 03-create-advanced-cluster-eksctl-existing-vpc.
 - Review your kubeconfig:
 ```
 eksctl utils write-kubeconfig --name cluster-eksctl --region $C9_REGION --authenticator-role-arn arn:aws:iam::${C9_AWS_ACCT}:role/cluster-eksctl-creator-role
@@ -64,14 +67,14 @@ kubectl get all -A
 ```
 export CODEBUILD_IAM_ARN=$(aws cloudformation --region $C9_REGION \
     describe-stacks \
-    --stack-name eks-demos-05-devops-simple-code-pipeline \
+    --stack-name eks-demos-04-devops-simple-code-pipeline \
     --query "Stacks[].Outputs[?OutputKey=='CodeBuildIAMRole'].[OutputValue]" \
     --output text)
 echo $CODEBUILD_IAM_ARN
 ```
 - Create K8s RBAC Role & Bindings for a K8s RBAC user name 'codebuild' in simple-k8s-codepipeline namespace, this will be mapped to $CODEBUILD_IAM_ARN:
 ```
-kubectl apply -f ./artifacts/05-DEMO-simple-CodePipeline-k8s-RBAC.yaml
+kubectl apply -f ./artifacts/DEMO-simple-CodePipeline-k8s-RBAC.yaml
 ```
 - Update the K8s `cm aws-auth -n kube-system` for $CODEBUILD_IAM_ARN to be mapped to the RBAC user called 'codebuild' in K8s:
 ```
@@ -90,8 +93,8 @@ git config --global credential.UseHttpPath true
 - Commit & 'Init' Push to the CodeCommit repo with the sample python application/Dockerfile:
 ```
 cd ~/environment/
-git clone https://git-codecommit.us-west-1.amazonaws.com/v1/repos/eks-demo-05-simple-codepipeline-cc
-cd ~/environment/eks-demo-05-simple-codepipeline-cc
+git clone https://git-codecommit.us-west-1.amazonaws.com/v1/repos/eks-demo-04-simple-codepipeline-cc
+cd ~/environment/eks-demo-04-simple-codepipeline-cc
 cp ~/environment/mglab-share-eks/demos/05-devops-simple-code-pipeline/artifacts/simple-app/* ./
 git add -A
 git commit -am "init"
@@ -137,9 +140,9 @@ kubectl delete namespace simple-k8s-codepipeline --force
 - Do not cleanup if you plan to run any dependent demos
 ```
 export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
-export RM_ARTIFACT_BUCKET=$(aws cloudformation list-stack-resources --region $C9_REGION  --stack-name eks-demos-05-devops-simple-code-pipeline  --query StackResourceSummaries[].PhysicalResourceId | grep artifactbucket | awk -F '"' '{print$2}')
+export RM_ARTIFACT_BUCKET=$(aws cloudformation list-stack-resources --region $C9_REGION  --stack-name eks-demos-04-devops-simple-code-pipeline  --query StackResourceSummaries[].PhysicalResourceId | grep artifactbucket | awk -F '"' '{print$2}')
 aws s3 rb s3://$RM_ARTIFACT_BUCKET --force
-aws ecr delete-repository --region $C9_REGION --repository-name eks-demo-05-simple-codepipeline-ecr --force
-aws cloudformation delete-stack --region $C9_REGION  --stack-name eks-demos-05-devops-simple-code-pipeline
-aws cloudformation wait stack-delete-complete --region $C9_REGION --stack-name eks-demos-05-devops-simple-code-pipeline
+aws ecr delete-repository --region $C9_REGION --repository-name eks-demo-04-simple-codepipeline-ecr --force
+aws cloudformation delete-stack --region $C9_REGION  --stack-name eks-demos-04-devops-simple-code-pipeline
+aws cloudformation wait stack-delete-complete --region $C9_REGION --stack-name eks-demos-04-devops-simple-code-pipeline
 ```
