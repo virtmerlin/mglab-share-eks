@@ -94,11 +94,11 @@ kubectl get secret wordpress-db-secret -n wordpress -o jsonpath='{.data.username
 ```
 - Create Mysql [backend] as a K8s ClusterIP Service type:
 ```
-kubectl apply -f ./artifacts/02-DEMO-k8s-mysql.yaml -n wordpress
+kubectl apply -f ./artifacts/DEMO-k8s-mysql.yaml -n wordpress
 ```
 - Create Wordpress [frontend] as a K8s Nodeport Service type:
 ```
-kubectl apply -f ./artifacts/02-DEMO-k8s-wordpress.yaml -n wordpress
+kubectl apply -f ./artifacts/DEMO-k8s-wordpress.yaml -n wordpress
 ```
 
 #### 4: Expose Wordpress [frontend] running in minikube using the kubectl cli.
