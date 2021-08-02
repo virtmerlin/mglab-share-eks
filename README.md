@@ -51,7 +51,7 @@ Demo Name     | Demo Link     | Last Automated Test Timestamp
 01-docker-build-wordpress     | [link](demos/01-docker-build-wordpress/demo.md)   | Manual 06-28-2021
 01-kubernetes-run-wordpress-minikube     | [link](demos/01-kubernetes-run-wordpress-minikube/demo.md)   | Manual 06-28-2021
 02-create-a-basic-cluster-eksctl-one-liner     | [link](demos/02-create-a-basic-cluster-eksctl-one-liner/demo.md)   | Manual 06-28-2021
-04-create-advanced-cluster-eksctl-existing-vpc     | [link](demos/04-create-advanced-cluster-eksctl-existing-vpc/demo.md)   | Manual 06-28-2021
+03-create-advanced-cluster-eksctl-existing-vpc     | [link](demos/03-create-advanced-cluster-eksctl-existing-vpc/demo.md)   | Manual 06-28-2021
 05-devops-docker-push-ecr     | [link](demos/05-devops-docker-push-ecr/demo.md)   | Manual 06-28-2021
 05-devops-helm-chart-build-push-ecr     | [link](demos/05-devops-helm-chart-build-push-ecr/demo.md)   | Manual 06-28-2021
 05-devops-simple-code-pipeline     | [link](demos/05-devops-simple-code-pipeline/demo.md)   | Manual 06-28-2021

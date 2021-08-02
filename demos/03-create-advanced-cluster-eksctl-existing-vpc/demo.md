@@ -1,4 +1,4 @@
-## 04-create-advanced-cluster-eksctl-existing-vpc
+## 03-create-advanced-cluster-eksctl-existing-vpc
 #### GIVEN:
   - A developer desktop with docker & git installed (AWS Cloud9)
   - A VPC already created with EKS best practices via 00-setup-cloud9 demo
@@ -31,17 +31,20 @@
 ---------------------------------------------------------------
 ### DEMO
 
+#### 0: Reset Cloud9 Instance environ from previous demo(s).
+- Reset your region & AWS account variables in case you launched a new terminal session:
+```
+cd ~/environment/mglab-share-eks/demos/03-create-advanced-cluster-eksctl-existing-vpc/
+export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
+export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
+clear
+echo $C9_REGION
+echo $C9_AWS_ACCT
+```
+
 #### 1: Install the eksctl cli onto the Cloud9 IDE instance.
   - [DOC LINK: Installing eksctl](https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html)
 
-- Reset your region & AWS account variables in case you launched a new terminal session:
-```
-cd ~/environment/mglab-share-eks/demos/04-create-advanced-cluster-eksctl-existing-vpc/
-export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
-echo $C9_REGION
-export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
-echo $C9_AWS_ACCT
-```
 - Download & install the eksctl cli:
 ```
 curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
@@ -86,17 +89,17 @@ for i in $(echo $SUBNETS_ALL | sed "s/,/ /g")
      - [DOC LINK: EKS Cluster Creator Role](https://aws.github.io/aws-eks-best-practices/security/docs/iam#create-the-cluster-with-a-dedicated-iam-role)
 
 ```
-aws iam create-policy --policy-name cluster-eksctl-creator --policy-document file://./artifacts/04-DEMO-eks-creator-iam-policy-eksctl.json
+aws iam create-policy --policy-name cluster-eksctl-creator --policy-document file://./artifacts/DEMO-eks-creator-iam-policy-eksctl.json
 ```
 - Edit the json file that defines who IAM 'trusts' to assume the role.   You will inject your AWS account into the file:
 ```
-sed  -i "s/\[\[C9_AWS_ACCT\]\]/$C9_AWS_ACCT/g" ./artifacts/04-DEMO-eks-creator-iam-policy-trust.json
+sed  -i "s/\[\[C9_AWS_ACCT\]\]/$C9_AWS_ACCT/g" ./artifacts/DEMO-eks-creator-iam-policy-trust.json
 ```
 - Create the cluster creator IAM role and attach all required eksctl permissions/policies.
     - [DOC LINK: eksctl Req'd Permissions](https://eksctl.io/usage/minimum-iam-policies/)
 
 ```    
-aws iam create-role --role-name cluster-eksctl-creator-role --assume-role-policy-document file://./artifacts/04-DEMO-eks-creator-iam-policy-trust.json
+aws iam create-role --role-name cluster-eksctl-creator-role --assume-role-policy-document file://./artifacts/DEMO-eks-creator-iam-policy-trust.json
 aws iam attach-role-policy --policy-arn arn:aws:iam::${C9_AWS_ACCT}:policy/cluster-eksctl-creator --role-name cluster-eksctl-creator-role
 ```
 
@@ -123,16 +126,16 @@ echo $SUBNET2
 ```
 - Prepare eksctl cluster yaml with previously set variables for private subnets, aws account, & region:
 ```
-sed  -i "s/\[\[REGION\]\]/$C9_REGION/g" ./artifacts/04-DEMO-eks-eksctl-cluster.yaml
-sed  -i "s/\[\[SUBNET1\]\]/$SUBNET1/g" ./artifacts/04-DEMO-eks-eksctl-cluster.yaml
-sed  -i "s/\[\[SUBNET2\]\]/$SUBNET2/g" ./artifacts/04-DEMO-eks-eksctl-cluster.yaml
-sed  -i "s/\[\[AWSACCT\]\]/$C9_AWS_ACCT/g" ./artifacts/04-DEMO-eks-eksctl-cluster.yaml
+sed  -i "s/\[\[REGION\]\]/$C9_REGION/g" ./artifacts/DEMO-eks-eksctl-cluster.yaml
+sed  -i "s/\[\[SUBNET1\]\]/$SUBNET1/g" ./artifacts/DEMO-eks-eksctl-cluster.yaml
+sed  -i "s/\[\[SUBNET2\]\]/$SUBNET2/g" ./artifacts/DEMO-eks-eksctl-cluster.yaml
+sed  -i "s/\[\[AWSACCT\]\]/$C9_AWS_ACCT/g" ./artifacts/DEMO-eks-eksctl-cluster.yaml
 ```
 - Create IAM policy to attach to the Load balancer Controller IRSA K8s account
 ```
-aws iam get-policy --policy-arn arn:aws:iam::$C9_AWS_ACCT:policy/AWSLoadBalancerControllerIAMPolicy || aws iam create-policy --policy-name AWSLoadBalancerControllerIAMPolicy --policy-document file://./artifacts/04-DEMO-AWSLoadBalancerControllerIAMPolicy.json
+aws iam get-policy --policy-arn arn:aws:iam::$C9_AWS_ACCT:policy/AWSLoadBalancerControllerIAMPolicy || aws iam create-policy --policy-name AWSLoadBalancerControllerIAMPolicy --policy-document file://./artifacts/DEMO-AWSLoadBalancerControllerIAMPolicy.json
 ```
-- Review the resultant _./artifacts/04-DEMO-eks-eksctl-cluster.yaml_ file in the Cloud9 text editor.
+- Review the resultant _./artifacts/DEMO-eks-eksctl-cluster.yaml_ file in the Cloud9 text editor.
 
 #### 5: Create EKS Cluster with eksctl.
 - Show current logged in IAM user:
@@ -151,7 +154,7 @@ aws sts get-caller-identity
 ```
 - As assumed IAM role, create EKS cluster with eksctl into the existing VPC:
 ```
-eksctl create cluster -f ./artifacts/04-DEMO-eks-eksctl-cluster.yaml
+eksctl create cluster -f ./artifacts/DEMO-eks-eksctl-cluster.yaml
 ```
 - 'UN'-assume IAM role cluster-eksctl-creator-role:
 ```
@@ -212,7 +215,7 @@ kubectl logs deployment.apps/cluster-autoscaler -n kube-system -f
 #### 8: Deploy Wordpress with PHP front end on Fargate & Mysql backend on managed Nodegroup.
 - Deploy Wordpress front & back end workloads:
 ```
-kubectl apply -f ./artifacts/04-DEMO-k8s-all-in-one-fargate.yaml
+kubectl apply -f ./artifacts/DEMO-k8s-all-in-one-fargate.yaml
 watch kubectl get pods -o wide -n wordpress-fargate
 ```
 - Get all K8s nodes, you should see some additional `fargate` nodes:
