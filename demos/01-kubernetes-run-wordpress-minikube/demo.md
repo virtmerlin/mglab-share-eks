@@ -169,7 +169,7 @@ kubectl get pvc -A
 #### 7: (Optional) K8s Deployment Rollout & Rollback.  See the Deployment manage multiple Replicasets updating image & rolling back.
 - Update Wordpress deployments to be declared by single yaml:
 ```
-kubectl apply -f ./artifacts/02-DEMO-k8s-all-in-one.yaml
+kubectl apply -f ./artifacts/DEMO-k8s-all-in-one.yaml
 kubectl get deployment.v1.apps/wordpress -n wordpress -o yaml | grep image:
 sleep 3
 kubectl rollout status deployment/wordpress -n wordpress
