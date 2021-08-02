@@ -80,7 +80,7 @@ aws ecr get-login-password --region $C9_REGION | docker login --username AWS --p
 #### 6: Tag & Push the local OCI image to ECR
 - Tag & push image to ECR:
 ```
-docker tag eks-demo-wordpress:latest $C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com/eks-demo-05-devops-docker-push-wordpress-ecr:latest
+docker tag eks-demo-wordpress:latest $C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com/eks-demo-04-devops-docker-push-wordpress-ecr:latest
 docker push $C9_AWS_ACCT.dkr.ecr.$C9_REGION.amazonaws.com/eks-demo-04-devops-docker-push-wordpress-ecr:latest
 ```
 - Open the ECR console [link](https://us-west-1.console.aws.amazon.com/ecr/repositories/private/987210092513/eks-demo-05-devops-docker-push-wordpress-ecr?) and scan &/or review your OCI image.
