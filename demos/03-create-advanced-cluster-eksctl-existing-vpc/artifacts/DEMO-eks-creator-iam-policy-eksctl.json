@@ -25,7 +25,8 @@
                 "iam:CreateServiceLinkedRole",
                 "iam:ListAttachedRolePolicies",
                 "iam:CreateOpenIDConnectProvider",
-                "iam:GetOpenIDConnectProvider"
+                "iam:GetOpenIDConnectProvider",
+                "iam:TagOpenIDConnectProvider"
             ],
             "Resource": "*"
         },
