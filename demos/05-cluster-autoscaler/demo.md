@@ -1,7 +1,7 @@
-## 06-cluster-autoscaler
+## 05-cluster-autoscaler
 #### GIVEN:
   - A developer desktop with docker & git installed (AWS Cloud9)
-  - An EKS cluster named 'cluster-eksctl' has been created via 04-create-advanced-cluster-eksctl-existing-vpc
+  - An EKS cluster named 'cluster-eksctl' has been created via 03-create-advanced-cluster-eksctl-existing-vpc
 
 #### WHEN:
   - I validate the cluster autoscaler is functioning
@@ -19,23 +19,26 @@
 ---------------------------------------------------------------
 ### REQUIRES
 - 00-setup-cloud9
-- 04-create-advanced-cluster-eksctl-existing-vpc
+- 03-create-advanced-cluster-eksctl-existing-vpc
 
 ---------------------------------------------------------------
 ---------------------------------------------------------------
 ### DEMO
 
-#### 1: Validate the Cluster Autoscaler installed during cluster creation.
+#### 0: Reset Cloud9 Instance environ from previous demo(s).
 - Reset your region & AWS account variables in case you launched a new terminal session:
 ```
-cd ~/environment/mglab-share-eks/demos/06-cluster-autoscaler
+cd ~/environment/mglab-share-eks/demos/05-cluster-autoscaler/
 export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
-echo $C9_REGION
 export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
-echo $C9_AWS_ACCT
 export AWS_ACCESS_KEY_ID=$(cat ~/.aws/credentials | grep aws_access_key_id | awk '{print$3}')
 export AWS_SECRET_ACCESS_KEY=$(cat ~/.aws/credentials | grep aws_secret_access_key | awk '{print$3}')
+clear
+echo $C9_REGION
+echo $C9_AWS_ACCT
 ```
+
+#### 1: Validate the Cluster Autoscaler installed during cluster creation.
 - Update our kubeconfig to interact with the cluster created in 04-create-advanced-cluster-eksctl-existing-vpc.
 ```
 eksctl utils write-kubeconfig --name cluster-eksctl --region $C9_REGION --authenticator-role-arn arn:aws:iam::${C9_AWS_ACCT}:role/cluster-eksctl-creator-role
