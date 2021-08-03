@@ -56,7 +56,15 @@ aws amp create-workspace --region us-east-1 --alias 05-demo-amp-eks
 ./artifacts/setup-amp.sh
 ```
 
-#### 2: Install/Update Prometheus to 'remote Write' to the AWS AMP Workspace.
+#### 2: Install the helm cli.
+- Install helm v3:
+```
+curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get-helm-3 > get_helm.sh
+chmod 700 get_helm.sh
+./get_helm.sh
+```
+
+#### 3: Install/Update Prometheus to 'remote Write' to the AWS AMP Workspace.
 - Use helm to update/install Prometheus
 ```
 export AMP_WSID=$(aws amp list-workspaces --region us-east-1 | jq '.workspaces[] | select (.alias=="05-demo-amp-eks") | .workspaceId' | tr -d '"')
