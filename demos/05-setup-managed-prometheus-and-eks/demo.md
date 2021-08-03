@@ -50,7 +50,7 @@ kubectl get all -A
 ```
 aws amp create-workspace --region us-east-1 --alias 05-demo-amp-eks
 ```
-- Setup IAM Pre-Reqs, execuet the provided bash script o setup an IAM role for Prometheus to forward to AMP:
+- Setup IAM Pre-Reqs, execute the provided bash script to setup an IAM role for Prometheus (running in our K8s cluster) to forward to AMP:
   - Creates an IAM role with an IAM policy that has permissions to remote-write into an AMP workspace
   - Creates a Kubernetes service account that is annotated with the IAM role
 ```
