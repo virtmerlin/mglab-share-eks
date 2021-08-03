@@ -85,7 +85,7 @@ helm install prometheus prometheus-community/prometheus \
      --set server.resources.limits.memory="1024Mi"
 ```
 
-#### Setup Grafana
+#### 3: Setup Grafana
 - use helm to update/install Grafana
 ```
 helm repo add grafana https://grafana.github.io/helm-charts
