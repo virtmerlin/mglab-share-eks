@@ -55,8 +55,8 @@ Demo Name     | Demo Link     | Last Automated Test Timestamp
 04-devops-docker-push-ecr     | [link](demos/04-devops-docker-push-ecr/demo.md)   | Manual 08-01-2021
 04-devops-helm-chart-build-push-ecr     | [link](demos/04-devops-helm-chart-build-push-ecr/demo.md)   | Manual 08-01-2021
 04-devops-simple-code-pipeline     | [link](demos/04-devops-simple-code-pipeline/demo.md)   | Manual 08-01-2021
-05-setup-prometheus-and-container-insights     | [link](demos/05-setup-prometheus-and-container-insights/demo.md)   | Manual 08-02-2021 
-05-setup-managed-prometheus-and-eks     | [link](demos/05-setup-managed-prometheus-and-eks/demo.md)   | REWORK  
+05-setup-prometheus-and-container-insights     | [link](demos/05-setup-prometheus-and-container-insights/demo.md)   | Manual 08-02-2021
+05-setup-managed-prometheus-and-eks     | [link](demos/05-setup-managed-prometheus-and-eks/demo.md)   | Manual 08-02-2021  
 05-cluster-autoscaler     | [link](demos/05-cluster-autoscaler/demo.md)   | REWORK
 06-spot-n-ondemand-nodegroup-taints-n-affinity | [link](demos/06-spot-n-ondemand-nodegroup-taints-n-affinity/demo.md)   | REWORK
 07-aws-vpc-cni-pod-ip-assigment | [link](demos/07-aws-vpc-cni-pod-ip-assigment/demo.md)   | REWORK
