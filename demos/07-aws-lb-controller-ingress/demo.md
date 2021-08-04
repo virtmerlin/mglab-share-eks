@@ -1,7 +1,7 @@
-## 08-aws-lb-controller-ingress
+## 07-aws-lb-controller-ingress
 #### GIVEN:
   - A developer desktop with docker & git installed (AWS Cloud9)
-  - An EKS cluster created via eksctl from demo 04-create-advanced-cluster-eksctl-existing-vpc
+  - An EKS cluster created via eksctl from demo 03-create-advanced-cluster-eksctl-existing-vpc
 
 #### WHEN:
   - I deploy the AWS LoadBalancer Controller
@@ -18,24 +18,27 @@
 ---------------------------------------------------------------
 ### REQUIRES
 - 00-setup-cloud9
-- 04-create-advanced-cluster-eksctl-existing-vpc
+- 03-create-advanced-cluster-eksctl-existing-vpc
 
 ---------------------------------------------------------------
 ---------------------------------------------------------------
 ### DEMO
 
-#### 1: Install the AWS Load Balancer Controller.
-- [DOC LINK: AWS LB Ctrlr](https://docs.aws.amazon.com/eks/latest/userguide/alb-ingress.html)
+#### 0: Reset Cloud9 Instance environ from previous demo(s).
 - Reset your region & AWS account variables in case you launched a new terminal session:
 ```
-cd ~/environment/mglab-share-eks/demos/08-aws-lb-controller-ingress
+cd ~/environment/mglab-share-eks/demos/07-aws-lb-controller-ingress/
 export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
-echo $C9_REGION
 export C9_AWS_ACCT=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep accountId | awk -F '"' '{print$4}')
-echo $C9_AWS_ACCT
 export AWS_ACCESS_KEY_ID=$(cat ~/.aws/credentials | grep aws_access_key_id | awk '{print$3}')
 export AWS_SECRET_ACCESS_KEY=$(cat ~/.aws/credentials | grep aws_secret_access_key | awk '{print$3}')
+clear
+echo $C9_REGION
+echo $C9_AWS_ACCT
 ```
+
+#### 1: Install the AWS Load Balancer Controller.
+- [DOC LINK: AWS LB Ctrlr](https://docs.aws.amazon.com/eks/latest/userguide/alb-ingress.html)
 - Update our kubeconfig to interact with the cluster created in 04-create-advanced-cluster-eksctl-existing-vpc.
 ```
 eksctl utils write-kubeconfig --name cluster-eksctl --region $C9_REGION --authenticator-role-arn arn:aws:iam::${C9_AWS_ACCT}:role/cluster-eksctl-creator-role
@@ -78,7 +81,7 @@ kubectl get sa aws-load-balancer-controller -n kube-system -o yaml
 #### 2: Deploy game2048 using Ingress.
 - Deploy and test a patch based routed Ingress Service for 2048 game:
 ```
-kubectl apply -f ./artifacts/08-DEMO-ingress-app.yaml
+kubectl apply -f ./artifacts/DEMO-ingress-app.yaml
 kubectl get ingress -n game-2048
 ```
 ---------------------------------------------------------------
@@ -92,7 +95,7 @@ kubectl get ingress -n game-2048
 ```
 export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
 eksctl utils write-kubeconfig --name cluster-eksctl --region $C9_REGION --authenticator-role-arn arn:aws:iam::${C9_AWS_ACCT}:role/cluster-eksctl-creator-role
-kubectl delete -f ./artifacts/08-DEMO-ingress-app.yaml
+kubectl delete -f ./artifacts/DEMO-ingress-app.yaml
 helm delete aws-load-balancer-controller -n kube-system
 kubectl delete -k "github.com/aws/eks-charts/stable/aws-load-balancer-controller//crds?ref=master"
 ```
