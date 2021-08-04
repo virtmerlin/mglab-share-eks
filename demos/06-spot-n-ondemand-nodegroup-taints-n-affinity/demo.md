@@ -107,5 +107,5 @@ kubectl get ds -n kube-system
 - Do not cleanup if you plan to run any dependent demos
 ```
 eksctl delete nodegroup -f ./artifacts/DEMO-eks-eksctl-self-managed-nodegroup.yaml --approve
-eksctl delete iamidentitymapping --cluster cluster-eksctl --arn $MY_IAM_USER --all
+eksctl delete iamidentitymapping --cluster cluster-eksctl --arn $(aws sts get-caller-identity --query Arn | tr -d '"') --all
 ```
