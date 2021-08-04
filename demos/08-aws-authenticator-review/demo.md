@@ -68,7 +68,7 @@ kubectl krew install rbac-lookup
 ```
 export CODEBUILD_IAM_ARN=$(aws cloudformation --region $C9_REGION \
   describe-stacks \
-  --stack-name eks-demos-05-devops-simple-code-pipeline \
+  --stack-name eks-demos-04-devops-simple-code-pipeline \
   --query "Stacks[].Outputs[?OutputKey=='CodeBuildIAMRole'].[OutputValue]" \
   --output text)
 echo $CODEBUILD_IAM_ARN
