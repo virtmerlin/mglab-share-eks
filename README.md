@@ -59,7 +59,7 @@ Demo Name     | Demo Link     | Last Automated Test Timestamp
 05-setup-managed-prometheus-and-eks     | [link](demos/05-setup-managed-prometheus-and-eks/demo.md)   | Manual 08-02-2021  
 05-cluster-autoscaler     | [link](demos/05-cluster-autoscaler/demo.md)   | Manual 08-02-2021
 06-spot-n-ondemand-nodegroup-taints-n-affinity | [link](demos/06-spot-n-ondemand-nodegroup-taints-n-affinity/demo.md)   | Manual 08-02-2021
-07-aws-vpc-cni-pod-ip-assigment | [link](demos/07-aws-vpc-cni-pod-ip-assigment/demo.md)   | REWORK
+07-aws-vpc-cni-pod-ip-assigment | [link](demos/07-aws-vpc-cni-pod-ip-assigment/demo.md)   | Manual 08-02-2021
 07-aws-vpc-cni-kubeproxy+iptables | [link](demos/07-aws-vpc-cni-kubeproxy+iptables/demo.md)   | REWORK
 07-aws-lb-controller-ingress | [link](demos/07-aws-lb-controller-ingress/demo.md)   | REWORK
 08-aws-authenticator-review | [link](demos/08-aws-authenticator-review/demo.md)   | REWORK
