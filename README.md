@@ -62,5 +62,5 @@ Demo Name     | Demo Link     | Last Automated Test Timestamp
 07-aws-vpc-cni-pod-ip-assigment | [link](demos/07-aws-vpc-cni-pod-ip-assigment/demo.md)   | Manual 08-02-2021
 07-aws-vpc-cni-kubeproxy+iptables | [link](demos/07-aws-vpc-cni-kubeproxy+iptables/demo.md)   | Manual 08-02-2021
 07-aws-lb-controller-ingress | [link](demos/07-aws-lb-controller-ingress/demo.md)   | Manual 08-02-2021
-08-aws-authenticator-review | [link](demos/08-aws-authenticator-review/demo.md)   | REWORK
-08-aws-irsa-oidc-review | [link](demos/08-aws-irsa-oidc-review/demo.md)   | REWORK
+08-aws-authenticator-review | [link](demos/08-aws-authenticator-review/demo.md)   | Manual 08-04-2021
+08-aws-irsa-oidc-review | [link](demos/08-aws-irsa-oidc-review/demo.md)   | Manual 08-04-2021
