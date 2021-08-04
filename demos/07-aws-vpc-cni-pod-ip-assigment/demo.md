@@ -102,10 +102,10 @@ docker exec -it $CTR_ID ash -c 'cat /sys/class/net/eth0/iflink' > /tmp/mycntreni
 export CTR_VETH_POD=$(cat /tmp/mycntreni.value)
 echo $CTR_VETH_POD
 ```
-- Now get the host namespace veth(B) 'linked' to the pod network namespace using that veth(A) pod ID from the container:
+- Now get the host namespace veth(B) 'linked' to the pod network namespace using that veth(A) pod ID from the container (You will have to paste the value from the previous step into the commands):
 ```
 grep -l [[ INSERT VAL OF $CTR_VETH_POD HERE ]] /sys/class/net/*/ifindex
-export CTR_VETH_NODE=$(grep -l 8 /sys/class/net/*/ifindex | awk -F '/' '{print$5}')
+export CTR_VETH_NODE=$(grep -l [[ INSERT VAL OF $CTR_VETH_POD HERE ]] /sys/class/net/*/ifindex | awk -F '/' '{print$5}')
 echo $CTR_VETH_NODE
 ```
 - You can see this link via the ip link list command, notice it has its own network names space id for the 2 linked veths:
