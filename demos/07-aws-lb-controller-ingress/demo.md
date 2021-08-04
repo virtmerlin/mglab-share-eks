@@ -82,6 +82,7 @@ kubectl get sa aws-load-balancer-controller -n kube-system -o yaml
 - Deploy and test a patch based routed Ingress Service for 2048 game:
 ```
 kubectl apply -f ./artifacts/DEMO-ingress-app.yaml
+sleep 5
 kubectl get ingress -n game-2048
 ```
 ---------------------------------------------------------------
