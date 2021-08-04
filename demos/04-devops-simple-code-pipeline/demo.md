@@ -95,7 +95,7 @@ git config --global credential.UseHttpPath true
 cd ~/environment/
 git clone https://git-codecommit.us-west-1.amazonaws.com/v1/repos/eks-demo-04-simple-codepipeline-cc
 cd ~/environment/eks-demo-04-simple-codepipeline-cc
-cp ~/environment/mglab-share-eks/demos/05-devops-simple-code-pipeline/artifacts/simple-app/* ./
+cp ~/environment/mglab-share-eks/demos/04-devops-simple-code-pipeline/artifacts/simple-app/* ./
 git add -A
 git commit -am "init"
 git push origin
