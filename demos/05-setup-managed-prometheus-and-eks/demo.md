@@ -134,7 +134,7 @@ aws iam detach-role-policy --policy-arn arn:aws:iam::$C9_AWS_ACCT:policy/AWSMana
 aws iam delete-role --role-name EKS-AMP-ServiceAccount-Role
 export C9_REGION=$(curl --silent http://169.254.169.254/latest/dynamic/instance-identity/document |  grep region | awk -F '"' '{print$4}')
 echo $C9_REGION
-eksctl utils write-kubeconfig --name cluster-eksctl --region $C9_REGION --authenticator-role-arn arn:aws:iam::${C9_AWS_ACCT}:role/cluster-eksctl-creator-role
+eksctl utils write-kubeconfig --cluster cluster-eksctl --region $C9_REGION --authenticator-role-arn arn:aws:iam::${C9_AWS_ACCT}:role/cluster-eksctl-creator-role
 kubectl delete ns prometheus
 kubectl delete ns grafana
 ```
