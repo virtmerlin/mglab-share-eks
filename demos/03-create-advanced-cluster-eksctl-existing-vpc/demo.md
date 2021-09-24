@@ -131,10 +131,7 @@ sed  -i "s/\[\[SUBNET1\]\]/$SUBNET1/g" ./artifacts/DEMO-eks-eksctl-cluster.yaml
 sed  -i "s/\[\[SUBNET2\]\]/$SUBNET2/g" ./artifacts/DEMO-eks-eksctl-cluster.yaml
 sed  -i "s/\[\[AWSACCT\]\]/$C9_AWS_ACCT/g" ./artifacts/DEMO-eks-eksctl-cluster.yaml
 ```
-- Create IAM policy to attach to the Load balancer Controller IRSA K8s account
-```
-aws iam get-policy --policy-arn arn:aws:iam::$C9_AWS_ACCT:policy/AWSLoadBalancerControllerIAMPolicy || aws iam create-policy --policy-name AWSLoadBalancerControllerIAMPolicy --policy-document file://./artifacts/DEMO-AWSLoadBalancerControllerIAMPolicy.json
-```
+
 - Review the resultant _./artifacts/DEMO-eks-eksctl-cluster.yaml_ file in the Cloud9 text editor.
 
 #### 5: Create EKS Cluster with eksctl.

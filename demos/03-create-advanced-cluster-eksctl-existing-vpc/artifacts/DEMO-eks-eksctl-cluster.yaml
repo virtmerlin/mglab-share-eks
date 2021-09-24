@@ -3,7 +3,7 @@ kind: ClusterConfig
 
 metadata:
   name: cluster-eksctl
-  version: '1.19'
+  version: '1.20'
   region: [[REGION]]
 
 vpc:
@@ -49,8 +49,8 @@ iam:
   - metadata:
       name: aws-load-balancer-controller
       namespace: kube-system
-    attachPolicyARNs:
-    - "arn:aws:iam::[[AWSACCT]]:policy/AWSLoadBalancerControllerIAMPolicy"
+    wellKnownPolicies:
+      awsLoadBalancerController: true
   - metadata:
       name: cluster-autoscaler
       namespace: kube-system
