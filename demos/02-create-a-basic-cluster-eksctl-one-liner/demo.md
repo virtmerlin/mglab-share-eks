@@ -88,7 +88,7 @@ sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 - Use eksctl cli to manually create/update a context to the cluster:
     - the create command should have done this but we are confirming we can do so manually to re-create our `~/.kube/config` file.
 ```
-eksctl utils write-kubeconfig --name cluster-one-liner --region $C9_REGION
+eksctl utils write-kubeconfig --cluster cluster-one-liner --region $C9_REGION
 kubectl config view --minify
 ```
 - Export your credentials to env vars so that the kubectl wrapper to the aws cli can authN:

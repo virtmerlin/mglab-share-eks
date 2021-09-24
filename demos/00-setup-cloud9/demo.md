@@ -60,10 +60,10 @@ if [ ! -d mglab-share-archit ]; then git clone https://github.com/virtmerlin/mgl
 chmod 755 ./mglab-share-eks/demos/00-setup-cloud9/pre-reqs/resize.sh
 ./mglab-share-eks/demos/00-setup-cloud9/pre-reqs/resize.sh
 ```
-- **!!!** **DISABLE** AWS Managed Credentials in the Cloud9 IDE instance **!!!**
+- **!!!** **DISABLE** AWS Managed Temporary Credentials in the Cloud9 IDE instance **!!!**
 
     - This is required to use eksctl with a Cloud9 IDE
-    - Follow this [Link](https://docs.aws.amazon.com/cloud9/latest/user-guide/how-cloud9-with-iam.html#:~:text=With%20the%20environment%20open%2C%20in,temporary%20credentials%20on%20or%20off.) for Instructions on How
+    - Follow this [Link](https://docs.aws.amazon.com/cloud9/latest/user-guide/security-iam.html#auth-and-access-control-temporary-managed-credentials) for Instructions on How
 - Run `aws configure` to pass in your AWS IAM User's access key id & secret to use in the Cloud9 IDE instance instead of the AWS managed Credentials you just disabled:
 
     - Follow this [Link](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html#cli-configure-quickstart-config) for details on the `aws configure` command

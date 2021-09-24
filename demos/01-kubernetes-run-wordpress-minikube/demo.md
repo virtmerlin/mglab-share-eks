@@ -1,6 +1,6 @@
 ## 01-kubernetes-run-wordpress-minikube
 #### GIVEN:
-  - A developer desktop with docker & git installed (AWS Cloud9)
+  - A developer desktop with docker & git installed (AWS Cloud9/C9)
   - A multi-tier web workload (Wordpress) already packaged as docker images
 
 #### WHEN:

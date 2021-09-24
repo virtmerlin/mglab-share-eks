@@ -5,7 +5,7 @@
   - A docker image inspection tool (dive)
 
 #### WHEN:
-  - I pull the Dockerhub 'Dockerfile' for Wordpress & build it
+  - I pull the 'Dockerfile' for Wordpress from dockerhub.io (managed by the Docker Team) & build it ...
 
 #### THEN:
   - I will get a docker image for the Wordpress PHP/Apache front end built
