@@ -195,7 +195,7 @@ echo $CA_SA_ARN
 ```
 - Install the AWS Cluster Autoscaler
 ```
-curl https://raw.githubusercontent.com/kubernetes/autoscaler/master/cluster-autoscaler/cloudprovider/aws/examples/cluster-autoscaler-autodiscover.yaml | sed "s/<YOUR.*NAME>/cluster-eksctl/;s/v1.17.3/v1.19.1/" | kubectl apply -f -
+curl https://raw.githubusercontent.com/kubernetes/autoscaler/master/cluster-autoscaler/cloudprovider/aws/examples/cluster-autoscaler-autodiscover.yaml | sed "s/<YOUR.*NAME>/cluster-eksctl/;s/v1.21.0/v1.20.0/" | kubectl apply -f -
 kubectl annotate serviceaccount cluster-autoscaler \
     -n kube-system --overwrite \
     eks.amazonaws.com/role-arn=$CA_SA_ARN
