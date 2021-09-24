@@ -134,7 +134,7 @@ sed  -i "s/\[\[AWSACCT\]\]/$C9_AWS_ACCT/g" ./artifacts/DEMO-eks-eksctl-cluster.y
 
 - Review the resultant _./artifacts/DEMO-eks-eksctl-cluster.yaml_ file in the Cloud9 text editor.
 
-#### 5: Create EKS Cluster with eksctl.
+#### 5: Assume the cluster-eksctl-creator-role IAM role & create the EKS Cluster with eksctl.
 - Show current logged in IAM user:
 ```
 aws sts get-caller-identity
@@ -161,7 +161,7 @@ export AWS_SECRET_ACCESS_KEY=$(cat ~/.aws/credentials | grep aws_secret_access_k
 aws sts get-caller-identity
 ```
 
-#### 6: Access the EKS Cluster with kubectl.
+#### 6: Generate a kubeconfig & Access the EKS Cluster with kubectl.
 - Install kubectl & review your kubeconfig:
 ```
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
