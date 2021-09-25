@@ -51,7 +51,7 @@ aws ecr create-repository --repository-name eks-demo-04-devops-docker-push-wordp
 #### 2: Update our kubeconfig to interact with the cluster created in 03-create-advanced-cluster-eksctl-existing-vpc.
 - Review your kubeconfig:
 ```
-eksctl utils write-kubeconfig --name cluster-eksctl --region $C9_REGION --authenticator-role-arn arn:aws:iam::${C9_AWS_ACCT}:role/cluster-eksctl-creator-role
+eksctl utils write-kubeconfig --cluster cluster-eksctl --region $C9_REGION --authenticator-role-arn arn:aws:iam::${C9_AWS_ACCT}:role/cluster-eksctl-creator-role
 kubectl config view --minify
 kubectl get all -A
 ```
