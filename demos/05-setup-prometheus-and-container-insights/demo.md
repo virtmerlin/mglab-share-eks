@@ -52,7 +52,7 @@ echo $C9_AWS_ACCT
 #### 1: Install The Kubernetes Metrics Server.
 - Update our kubeconfig to interact with the cluster created in 04-create-advanced-cluster-eksctl-existing-vpc.
 ```
-eksctl utils write-kubeconfig --name cluster-eksctl --region $C9_REGION --authenticator-role-arn arn:aws:iam::${C9_AWS_ACCT}:role/cluster-eksctl-creator-role
+eksctl utils write-kubeconfig --cluster cluster-eksctl --region $C9_REGION --authenticator-role-arn arn:aws:iam::${C9_AWS_ACCT}:role/cluster-eksctl-creator-role
 kubectl config view --minify
 kubectl get all -A
 ```
@@ -60,7 +60,7 @@ kubectl get all -A
 ```
 kubectl get --raw /metrics
 sleep3
-kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.4.2/components.yaml
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.5.1/components.yaml
 ```
 - Look at the new 'metrics' node & pod aggregation endpoint:
 ```
@@ -192,7 +192,7 @@ aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/CloudWatchAgentS
 ```
 - Apply/Update the Wordpress Fargate Deployment.  Review the yaml and notice the 'aws-observability' namespace & configmap:
 ```
-kubectl apply -f ../04-create-advanced-cluster-eksctl-existing-vpc/artifacts/04-DEMO-k8s-all-in-one-fargate.yaml
+kubectl apply -f ../03-create-advanced-cluster-eksctl-existing-vpc/artifacts/DEMO-k8s-all-in-one-fargate.yaml
 kubectl rollout restart deployment wordpress -n wordpress-fargate
 ```
 ```
