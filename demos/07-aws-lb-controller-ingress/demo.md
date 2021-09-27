@@ -41,7 +41,7 @@ echo $C9_AWS_ACCT
 - [DOC LINK: AWS LB Ctrlr](https://docs.aws.amazon.com/eks/latest/userguide/alb-ingress.html)
 - Update our kubeconfig to interact with the cluster created in 04-create-advanced-cluster-eksctl-existing-vpc.
 ```
-eksctl utils write-kubeconfig --name cluster-eksctl --region $C9_REGION --authenticator-role-arn arn:aws:iam::${C9_AWS_ACCT}:role/cluster-eksctl-creator-role
+eksctl utils write-kubeconfig --cluster cluster-eksctl --region $C9_REGION --authenticator-role-arn arn:aws:iam::${C9_AWS_ACCT}:role/cluster-eksctl-creator-role
 kubectl config view --minify
 kubectl get all -A
 ```
