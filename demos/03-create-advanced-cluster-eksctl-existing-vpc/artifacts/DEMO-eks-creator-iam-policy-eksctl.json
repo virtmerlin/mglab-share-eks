@@ -109,8 +109,13 @@
                 "ec2:DescribeLaunchTemplateVersions",
                 "ec2:DescribeImageAttribute",
                 "ec2:DescribeKeyPairs",
-                "ec2:ImportKeyPair"
+                "ec2:ImportKeyPair",
             ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": "elasticloadbalancing:Describe*",
             "Resource": "*"
         }
     ]
