@@ -56,7 +56,7 @@ aws cloudformation deploy --region $C9_REGION --template-file ./pre-reqs/cfn-c9-
 cd ~/environment
 git config --global user.name "demo user"
 git config --global user.email demo@virtmerlin.io
-if [ ! -d mglab-share-archit ]; then git clone https://github.com/virtmerlin/mglab-share-eks.git; fi
+if [ ! -d mglab-share-eks ]; then git clone https://github.com/virtmerlin/mglab-share-eks.git; fi
 chmod 755 ./mglab-share-eks/demos/00-setup-cloud9/pre-reqs/resize.sh
 ./mglab-share-eks/demos/00-setup-cloud9/pre-reqs/resize.sh
 ```
