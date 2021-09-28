@@ -38,14 +38,30 @@ echo $C9_REGION
 echo $C9_AWS_ACCT
 ```
 
-#### 1: Validate the Cluster Autoscaler installed during cluster creation.
+#### 1: Deploy & Verify the Cluster Autoscaler.
 - Update our kubeconfig to interact with the cluster created in 04-create-advanced-cluster-eksctl-existing-vpc.
 ```
 eksctl utils write-kubeconfig --name cluster-eksctl --region $C9_REGION --authenticator-role-arn arn:aws:iam::${C9_AWS_ACCT}:role/cluster-eksctl-creator-role
 kubectl config view --minify
 kubectl get all -A
 ```
-- Confirm CA is running by viewing the cluster-autoscaler logs, _ctrl_c_ to exit:
+
+- Fetch the ARN of the IRSA role that eksctl created to install the AWS Cluster Autoscaler with:
+```
+export CA_SA_ARN=$(eksctl get iamserviceaccount --cluster cluster-eksctl | grep cluster-autoscaler | awk '{print$3}')
+echo $CA_SA_ARN
+```
+- Install the AWS Cluster Autoscaler
+```
+curl https://raw.githubusercontent.com/kubernetes/autoscaler/master/cluster-autoscaler/cloudprovider/aws/examples/cluster-autoscaler-autodiscover.yaml | sed "s/<YOUR.*NAME>/cluster-eksctl/;s/v1.21.0/v1.20.0/" | kubectl apply -f -
+kubectl annotate serviceaccount cluster-autoscaler \
+    -n kube-system --overwrite \
+    eks.amazonaws.com/role-arn=$CA_SA_ARN
+kubectl patch deployment cluster-autoscaler \
+    -n kube-system \
+    -p '{"spec":{"template":{"metadata":{"annotations":{"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"}}}}}'
+```
+- Confirm the Cluster Autoscaler is functional, use _ctrl-c_ to exit:
 ```
 kubectl logs deployment.apps/cluster-autoscaler -n kube-system -f
 ```
@@ -59,7 +75,7 @@ kubectl get sa cluster-autoscaler -n kube-system -o yaml | grep "eks.amazonaws.c
 kubectl get deployment cluster-autoscaler -n kube-system -o yaml
 kubectl get deployment cluster-autoscaler -n kube-system -o yaml | grep "serviceAccount:"
 ```
-- List the EKS Clusters pirvate OIDC provider that is _trusted_ to sign IRSA tokens so the K8s SA can assume the IAM Role:
+- List the EKS Clusters private OIDC provider that is _trusted_ to sign IRSA tokens so the K8s SA can assume the IAM Role:
 ```
 export OIDC_URL=$(aws eks describe-cluster --name cluster-eksctl --query 'cluster.identity.oidc.issuer' --region $C9_REGION | tr -d '\"')
 echo $OIDC_URL

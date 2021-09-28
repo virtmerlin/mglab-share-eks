@@ -203,7 +203,7 @@ kubectl patch deployment cluster-autoscaler \
     -n kube-system \
     -p '{"spec":{"template":{"metadata":{"annotations":{"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"}}}}}'
 ```
-- Confirm the Cluster Autoscaler id functional, use _ctrl-c_ to exit:
+- Confirm the Cluster Autoscaler is functional, use _ctrl-c_ to exit:
 ```
 kubectl logs deployment.apps/cluster-autoscaler -n kube-system -f
 ```
