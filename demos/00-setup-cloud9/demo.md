@@ -1,15 +1,16 @@
 ## 00-setup-cloud9
+
 #### GIVEN:
   - An AWS Account
-  - An IAM user with admin permissions in that account
+  - An IAM user with admin permissions in that AWS account
   - A bash capable mac or pc with the AWS cli installed
 
 #### WHEN:
-  - Launch the 2 Cloudformation stacks in the pre-reqs folder
+  - Launch the 2 CloudFormation stacks in the pre-reqs folder
 
 #### THEN:
-  - I will get a best practices AWS VPC ready for EKS Clusters that all other demos will use
-  - I will get a Cloud9 IDE/Desktop to be used in other demos
+  - I will get a best practices AWS VPC ready for EKS Clusters that other demos may use
+  - I will get a Cloud9 IDE/Desktop to be used in all other demos
 
 #### SO THAT:
   - I can run demos from this repo on the Cloud9 IDE instance
@@ -23,19 +24,22 @@ _This demo is required to run all other demos in this repo._
 
 #### 1: Setup the Cloud9 Desktop
 
-- From your desktop bash capable mac/pc, set the AWS Region variable for where you will want to run these demos (script will default to us-west-1 if no value entered):
+- From your bash capable mac/pc, set the AWS Region variable for where you will want to run these demos (script will default to us-west-1 if no value entered):
 ```
 export C9_REGION=[[YOUR_REGION]] && if [[ $C9_REGION == '[[YOUR_REGION]]' ]];
 then export C9_REGION='us-west-1'; fi
 ```
 
-- From your desktop mac/pc, create/update the VPC using AWS Cloudformation:
+- From your bash capable mac/pc, create/update the VPC using AWS CloudFormation:
+```
+cd demos/00-setup-cloud9
+```
 ```
 aws cloudformation deploy --region $C9_REGION --template-file ./pre-reqs/cfn-amazon-eks-vpc-private-subnets.cfn \
     --stack-name eks-demos-networking --tags CLASS=EKS
 ```
 
-- From your desktop mac/pc, create/update a Cloud9 (C9) instance within the new VPC. You will run all subsequent demo steps after this one from a console on the C9 instance this cloudformation will create:
+- From your bash capable mac/pc, create an EC2 Instance Profile that will allow SSM to manage the Cloud9 Instance:
 ```
 export C9_IAM_SSM=$(aws iam get-instance-profile --instance-profile-name AWSCloud9SSMInstanceProfile --query InstanceProfile.InstanceProfileName | tr -d '"')
 if [ "$C9_IAM_SSM" == "AWSCloud9SSMInstanceProfile"  ]; then
@@ -45,11 +49,15 @@ else
   aws cloudformation deploy --region $C9_REGION --template-file ./pre-reqs/cfn-c9-instance-ssm-role.cfn \
       --stack-name mglab-demos-c9-ssm-instance-role --capabilities CAPABILITY_NAMED_IAM --tags CLASS=ALL
 fi
+```
+- From your bash capable mac/pc, create/update a Cloud9 (C9) Instance within the new VPC. You will run all subsequent demo steps after this one from a console on the C9 instance that this CloudFormation template will create:
+```
 aws cloudformation deploy --region $C9_REGION --template-file ./pre-reqs/cfn-c9-desktop.cfn \
     --stack-name eks-demos-c9-dev-desktop --tags CLASS=EKS
 ```
+#### 2: From a terminal session on the Cloud9 Desktop
 
-- Within the AWS Console of your account, navigate to the C9 instance's 'terminal' window of the IDE & resize the disk.  In this step, you will also pull down this repo into the C9 Instance:
+- Within the AWS Console of your account, navigate to the C9 instance's 'terminal' window of the IDE & resize the disk.  In this step, you will also 'clone' this github repo into the C9 Instance:
   - Open [https://console.aws.amazon.com/cloud9/home?](https://console.aws.amazon.com/cloud9/home?)
   - Open the created IDE to exec all remaining demo commands from within the new C9 instance's IDE terminal
 ```
@@ -60,7 +68,7 @@ if [ ! -d mglab-share-eks ]; then git clone https://github.com/virtmerlin/mglab-
 chmod 755 ./mglab-share-eks/demos/00-setup-cloud9/pre-reqs/resize.sh
 ./mglab-share-eks/demos/00-setup-cloud9/pre-reqs/resize.sh
 ```
-- **!!!** **DISABLE** AWS Managed Temporary Credentials in the Cloud9 IDE instance **!!!**
+- **!!!** **DISABLE** **!!!** AWS Managed Temporary Credentials in the Cloud9 IDE instance **!!!**
 
     - This is required to use eksctl with a Cloud9 IDE
     - Follow this [Link](https://docs.aws.amazon.com/cloud9/latest/user-guide/security-iam.html#auth-and-access-control-temporary-managed-credentials) for Instructions on How
