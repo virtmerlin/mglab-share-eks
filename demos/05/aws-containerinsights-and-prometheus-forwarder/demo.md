@@ -2,12 +2,12 @@
 
 #### GIVEN:
   - A developer desktop with docker & git installed (AWS Cloud9)
-  - An EKS cluster created via eksctl
+  - An EKS cluster created via 03/create-cluster-eksctl-existing-vpc-advanced
 
 #### WHEN:
   - I install the kubernetes metrics-server
   - I install the cloudwatch container insights agents with fluentbit
-  - I install the cloudwatch prometheus forwarder
+  - I install the cloudwatch prometheus forwarder for the EKS controlplane
   - I enable the EKS cluster control plane logging
 
 #### THEN:

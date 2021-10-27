@@ -62,12 +62,12 @@ sudo yum -y install terraform
 ```
 
 #### 2: Test the EKS tf templates by running a 'plan'
-- Init the required terraform modules to create the EKS cluster
+- Init the required terraform modules to create the EKS cluster:
 ```
 cd artifacts/terraform/
 terraform init
 ```
-- Run a terraform 'plan' to evaluate the expected output
+- Run a terraform 'plan' to evaluate the expected output:
 ```
 terraform plan
 ```
@@ -76,6 +76,10 @@ terraform plan
 - Create the Cluster, wait for terraform to complete
 ```
 terraform apply -auto-approve
+```
+- See the resources created by terraform:
+```
+terraform state list
 ```
 
 #### 4: Generate a kubeconfig & Access the EKS Cluster with kubectl.

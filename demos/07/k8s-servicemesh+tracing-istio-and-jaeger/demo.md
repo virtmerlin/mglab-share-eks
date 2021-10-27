@@ -112,11 +112,13 @@ kubectl apply -f samples/addons
 -  Launch Kiali UI in a web browser:
 ```
 kubectl -n istio-system patch svc kiali -p '{"spec": {"type": "LoadBalancer"}}'
+sleep 3
 echo "http://"$(kubectl -n istio-system get svc kiali --output=jsonpath={.status.loadBalancer.ingress[].hostname})":20001"
 ```
 -  Launch Jaeger UI in a web browser:
 ```
 kubectl -n istio-system patch svc tracing -p '{"spec": {"type": "LoadBalancer"}}'
+sleep 3
 echo "http://"$(kubectl -n istio-system get svc tracing --output=jsonpath={.status.loadBalancer.ingress[].hostname})
 ```
 - Experiment with Changing some service mesh routing rules for Bookinfo:
