@@ -65,3 +65,5 @@ EKS Module | Demo Name     | Demo Link     | Last Automated Test Timestamp
 07| k8s-servicemesh+tracing-istio-and-jaeger | [link](demos/07/k8s-servicemesh+tracing-istio-and-jaeger/demo.md)   | Manual 10-25-2021
 08| aws-iam-authenticator-review | [link](demos/08/aws-iam-authenticator-review/demo.md)   | Manual 10-25-2021
 08| aws-irsa-oidc-review | [link](demos/08/aws-irsa-oidc-review/demo.md)   | Manual 10-25-2021
+08| k8s-oidc-idp-cognito | [link](demos/08/k8s-oidc-idp-cognito/demo.md)   | Manual 10-31-2021
+08| k8s-oidc-idp-okta-kubelogin | [link](demos/08/k8s-oidc-idp-okta-kubelogin/demo.md)   | Manual 10-31-2021
