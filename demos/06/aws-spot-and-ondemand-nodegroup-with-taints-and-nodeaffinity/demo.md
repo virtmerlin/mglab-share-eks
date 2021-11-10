@@ -40,7 +40,7 @@ echo $C9_AWS_ACCT
 ```
 
 #### 1: Create self managed mixed instance (spot and on_demand billing types) nodegroup with eksctl.
-- Update our kubeconfig to interact with the cluster created in 04-create-advanced-cluster-eksctl-existing-vpc.
+- Update our kubeconfig to interact with the cluster created in 03/create-cluster-eksctl-existing-vpc-advanced.
 ```
 eksctl utils write-kubeconfig --cluster cluster-eksctl --region $C9_REGION --authenticator-role-arn arn:aws:iam::${C9_AWS_ACCT}:role/cluster-eksctl-creator-role
 kubectl config view --minify | grep 'cluster-name' -A 1
