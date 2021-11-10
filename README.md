@@ -59,6 +59,7 @@ EKS Module | Demo Name     | Demo Link     | Last Automated Test Timestamp
 05| k8s-prometheus-and-grafana-AMG    | [link](demos/05/k8s-prometheus-and-grafana-AMG/demo.md)   | Manual 10-25-2021  
 05| k8s-cluster-autoscaler     | [link](demos/05/k8s-cluster-autoscaler/demo.md)   | Manual 10-21-2021
 06| aws-spot-and-ondemand-nodegroup-with-taints-and-nodeaffinity | [link](demos/06/aws-spot-and-ondemand-nodegroup-with-taints-and-nodeaffinity/demo.md)   | Manual 10-25-2021
+06| k8s-opa | [link](demos/06/k8s-opa/demo.md)   | Manual 11-09-2021
 07| aws-vpc-cni-pod-ip-assigment | [link](demos/07/aws-vpc-cni-pod-ip-assigment/demo.md)   | Manual 10-25-2021
 07| aws-vpc-cni-kubeproxy+iptables | [link](demos/07/aws-vpc-cni-kubeproxy+iptables/demo.md)   | Manual 10-25-2021
 07| aws-lb-controller-ingress | [link](demos/07/aws-lb-controller-ingress/demo.md)   | Manual 10-25-2021
